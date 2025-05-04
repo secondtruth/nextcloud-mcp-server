@@ -70,7 +70,7 @@ def nc_notes_get_all():
 
 
 @mcp.tool()
-def get_note(note_id: int, ctx: Context):
+def nc_get_note(note_id: int, ctx: Context):
     """Get user note using note id"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_get_note(note_id=note_id)
