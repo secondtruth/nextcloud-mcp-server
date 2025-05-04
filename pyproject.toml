@@ -1,0 +1,25 @@
+[project]
+name = "nextcloud-mcp-server"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Chris Coutinho",email = "chris@coutinho.io"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli] (>=1.7,<1.8)",
+    "httpx (>=0.28.1,<0.29.0)"
+]
+
+[project.scripts]
+nc-mcp-server = "nextcloud_mcp_server.server:run"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+ipython = "^9.0.2"

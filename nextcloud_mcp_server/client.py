@@ -1,0 +1,143 @@
+import os
+import time  # Import time for sleep
+from httpx import (
+    Client,
+    Auth,
+    BasicAuth,
+    Headers,
+    Request,
+    Response,
+    HTTPStatusError,
+)  # Import HTTPStatusError
+import logging
+
+
+logger = logging.getLogger(__name__)
+
+
+def log_request(request: Request):
+    logger.info(
+        "Request event hook ****: %s %s - Waiting for content",
+        request.method,
+        request.url,
+    )
+    logger.info("Request body: %s", request.content)
+    logger.info("Headers: %s", request.headers)
+
+
+def log_response(response: Response):
+    response.read()  # Explicitly read the stream before accessing .text
+    logger.info("Response [%s] %s", response.status_code, response.text)
+
+
+class NextcloudClient:
+
+    def __init__(self, base_url: str, auth: Auth | None = None):
+
+        self._client = Client(
+            base_url=base_url,
+            auth=auth,
+            event_hooks={"request": [log_request], "response": [log_response]},
+        )
+
+    @classmethod
+    def from_env(cls):
+
+        logger.info("Creating NC Client using env vars")
+
+        host = os.environ["NEXTCLOUD_HOST"]
+        username = os.environ["NEXTCLOUD_USERNAME"]
+        password = os.environ["NEXTCLOUD_PASSWORD"]
+        return cls(base_url=host, auth=BasicAuth(username, password))
+
+    def capabilities(self):
+
+        response = self._client.get(
+            "/ocs/v2.php/cloud/capabilities",
+            headers={"OCS-APIRequest": "true", "Accept": "application/json"},
+        )
+        response.raise_for_status()
+
+        return response.json()
+
+    def notes_get_settings(self):
+        response = self._client.get("index.php/apps/notes/api/v1/settings")
+        response.raise_for_status()
+        return response.json()
+
+    def notes_get_all(self):
+        response = self._client.get("index.php/apps/notes/api/v1/notes")
+        response.raise_for_status()
+        return response.json()
+
+    def notes_get_note(self, *, note_id: int):
+        response = self._client.get(f"index.php/apps/notes/api/v1/notes/{note_id}")
+        response.raise_for_status()
+        return response.json()
+
+    def notes_create_note(
+        self,
+        *,
+        title: str | None = None,
+        content: str | None = None,
+        category: str | None = None,
+    ):
+        body = {}
+        if title:
+            body.update({"title": title})
+        if content:
+            body.update({"content": content})
+        if category:
+            body.update({"category": category})
+
+        response = self._client.post(
+            url="index.php/apps/notes/api/v1/notes",
+            json=body,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def notes_update_note(
+        self,
+        *,
+        note_id: int,
+        etag: str,
+        title: str | None = None,
+        content: str | None = None,
+        category: str | None = None,
+    ):
+        # body = {"etag": etag} # Removed redundant line
+        body = {}
+        if title:
+            body.update({"title": title})
+        if content:
+            body.update({"content": content})
+        if category:
+            body.update({"category": category})
+
+        logger.info(
+            "Attempting to update note %s with etag %s. Body: %s",
+            note_id,
+            etag,  # This was current_etag in the loop
+            body,
+        )
+        # Ensure conditional PUT using If-Match header is active
+        response = self._client.put(
+            url=f"index.php/apps/notes/api/v1/notes/{note_id}",
+            json=body,
+            headers={"If-Match": f'"{etag}"'},  # This was current_etag in the loop
+        )
+        logger.info(
+            "Update response for note %s: Status %s, Headers %s",
+            note_id,
+            response.status_code,
+            response.headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def notes_delete_note(self, *, note_id: int):
+        response = self._client.delete(f"index.php/apps/notes/api/v1/notes/{note_id}")
+        response.raise_for_status()
+        return response.json()
+
