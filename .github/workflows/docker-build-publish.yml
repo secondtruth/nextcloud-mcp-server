@@ -48,5 +48,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }},latest
+          tags:
+            - ${{ steps.meta.outputs.tags }}
+            - ghcr.io/${{ github.repository }}:latest
           labels: ${{ steps.meta.outputs.labels }}
