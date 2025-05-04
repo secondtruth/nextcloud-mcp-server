@@ -95,6 +95,10 @@ uvx mcp add nextcloud-mcp http://localhost:8000 --default-transport sse
 
 You can then interact with the server's tools and resources through your LLM interface connected to `uvx`.
 
+## References:
+
+- https://github.com/modelcontextprotocol/python-sdk
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests on the [GitHub repository](https://github.com/cbcoutinho/nextcloud-mcp-server).
