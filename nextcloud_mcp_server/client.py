@@ -136,8 +136,25 @@ class NextcloudClient:
         response.raise_for_status()
         return response.json()
 
+    def notes_search_notes(self, *, query: str):
+        all_notes = self.notes_get_all()
+        search_results = []
+        query_lower = query.lower()
+        for note in all_notes:
+            title_lower = note.get("title", "").lower()
+            content_lower = note.get("content", "").lower()
+            if query_lower in title_lower or query_lower in content_lower:
+                search_results.append(
+                    {
+                        "id": note.get("id"),
+                        "title": note.get("title"),
+                        "category": note.get("category"),
+                        "modified": note.get("modified"),
+                    }
+                )
+        return search_results
+
     def notes_delete_note(self, *, note_id: int):
         response = self._client.delete(f"index.php/apps/notes/api/v1/notes/{note_id}")
         response.raise_for_status()
         return response.json()
-

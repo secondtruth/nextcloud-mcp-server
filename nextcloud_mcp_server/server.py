@@ -42,7 +42,7 @@ def nc_get_capabilities():
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.capabilities()
 
 
@@ -52,7 +52,7 @@ def notes_get_settings():
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_get_settings()
 
 
@@ -62,24 +62,24 @@ def nc_notes_get_all():
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_get_all()
 
 
-@mcp.resource("notes://{note_id}")
-def nc_notes_get_note(note_id: int):
+# Removed nc_notes_get_note resource
+
+
+@mcp.tool()
+def get_note(note_id: int, ctx: Context):
     """Get user note using note id"""
-    ctx = (
-        mcp.get_context()
-    )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_get_note(note_id=note_id)
 
 
 @mcp.tool()
 def nc_notes_create_note(title: str, content: str, category: str, ctx: Context):
     """Create a new note"""
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_create_note(
         title=title,
         content=content,
@@ -97,7 +97,7 @@ def nc_notes_update_note(
     ctx: Context,
 ):
     logger.info("Updating note %s", note_id)
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_update_note(
         note_id=note_id,
         etag=etag,
@@ -108,9 +108,16 @@ def nc_notes_update_note(
 
 
 @mcp.tool()
+def nc_notes_search_notes(query: str, ctx: Context):
+    """Search notes by title or content, returning only id, title, and category."""
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return client.notes_search_notes(query=query)
+
+
+@mcp.tool()
 def nc_notes_delete_note(note_id: int, ctx: Context):
     logger.info("Deleting note %s", note_id)
-    client = ctx.request_context.lifespan_context.client
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
     return client.notes_delete_note(note_id=note_id)
 
 
