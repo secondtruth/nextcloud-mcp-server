@@ -33,7 +33,7 @@ jobs:
 
       - name: Install notes app
         run: |
-          docker compose exec app php occ apps:enable notes
+          docker compose exec app php occ app:enable notes
 
       # Add subsequent steps here, e.g., running tests
       - name: Run tests
