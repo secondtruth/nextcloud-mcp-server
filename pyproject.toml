@@ -15,6 +15,11 @@ dependencies = [
 [project.scripts]
 nc-mcp-server = "nextcloud_mcp_server.server:run"
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as slow (deselect with '-m \"not slow\"')"
+]
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -23,3 +28,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 ipython = "^9.0.2"
+pytest = "^8.2.2"

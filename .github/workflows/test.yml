@@ -31,8 +31,13 @@ jobs:
           done
           echo "Service is ready (returned 401)."
 
+      - name: Install notes app
+        run: |
+          docker compose exec app php occ apps:enable notes
+
       # Add subsequent steps here, e.g., running tests
-      # - name: Run tests
-      #   run: |
-      #     echo "Running tests..."
-      #     # Your test commands here
+      - name: Run tests
+        run: |
+          apt update && apt install python3-poetry && apt clean
+          poetry install
+          poetry run python -m pytest

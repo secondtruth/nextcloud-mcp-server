@@ -61,17 +61,17 @@ class NextcloudClient:
         return response.json()
 
     def notes_get_settings(self):
-        response = self._client.get("index.php/apps/notes/api/v1/settings")
+        response = self._client.get("/apps/notes/api/v1/settings")
         response.raise_for_status()
         return response.json()
 
     def notes_get_all(self):
-        response = self._client.get("index.php/apps/notes/api/v1/notes")
+        response = self._client.get("/apps/notes/api/v1/notes")
         response.raise_for_status()
         return response.json()
 
     def notes_get_note(self, *, note_id: int):
-        response = self._client.get(f"index.php/apps/notes/api/v1/notes/{note_id}")
+        response = self._client.get(f"/apps/notes/api/v1/notes/{note_id}")
         response.raise_for_status()
         return response.json()
 
@@ -91,7 +91,7 @@ class NextcloudClient:
             body.update({"category": category})
 
         response = self._client.post(
-            url="index.php/apps/notes/api/v1/notes",
+            url="/apps/notes/api/v1/notes",
             json=body,
         )
         response.raise_for_status()
@@ -123,7 +123,7 @@ class NextcloudClient:
         )
         # Ensure conditional PUT using If-Match header is active
         response = self._client.put(
-            url=f"index.php/apps/notes/api/v1/notes/{note_id}",
+            url=f"/apps/notes/api/v1/notes/{note_id}",
             json=body,
             headers={"If-Match": f'"{etag}"'},  # This was current_etag in the loop
         )
@@ -155,6 +155,6 @@ class NextcloudClient:
         return search_results
 
     def notes_delete_note(self, *, note_id: int):
-        response = self._client.delete(f"index.php/apps/notes/api/v1/notes/{note_id}")
+        response = self._client.delete(f"/apps/notes/api/v1/notes/{note_id}")
         response.raise_for_status()
         return response.json()
