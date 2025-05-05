@@ -1,0 +1,38 @@
+
+name: Docker Compose Action
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Run docker compose
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: "./docker-compose.yml"
+
+      - name: Wait for service to be ready
+        run: |
+          echo "Waiting for service at http://localhost:8080/ocs/v2.php/apps/serverinfo/api/v1/info to return 401..."
+          max_attempts=60
+          attempt=0
+          until curl -o /dev/null -s -w "%{http_code}\n" http://localhost:8080/ocs/v2.php/apps/serverinfo/api/v1/info | grep -q "401"; do
+            attempt=$((attempt + 1))
+            if [ $attempt -ge $max_attempts ]; then
+              echo "Service did not become ready in time."
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts: Service not ready, sleeping for 5 seconds..."
+            sleep 5
+          done
+          echo "Service is ready (returned 401)."
+
+      # Add subsequent steps here, e.g., running tests
+      # - name: Run tests
+      #   run: |
+      #     echo "Running tests..."
+      #     # Your test commands here
