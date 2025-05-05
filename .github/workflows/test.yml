@@ -37,6 +37,10 @@ jobs:
 
       # Add subsequent steps here, e.g., running tests
       - name: Run tests
+        env:
+          NEXTCLOUD_HOST: "localhost:8080"
+          NEXTCLOUD_USERNAME: "admin"
+          NEXTCLOUD_PASSWORD: "admin"
         run: |
           apt update && apt install python3-poetry && apt clean
           poetry install
