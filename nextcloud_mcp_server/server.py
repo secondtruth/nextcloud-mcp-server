@@ -56,19 +56,6 @@ def notes_get_settings():
     return client.notes_get_settings()
 
 
-@mcp.resource("notes://all")
-def nc_notes_get_all():
-    """Get all user notes"""
-    ctx = (
-        mcp.get_context()
-    )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-    client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_get_all()
-
-
-# Removed nc_notes_get_note resource
-
-
 @mcp.tool()
 def nc_get_note(note_id: int, ctx: Context):
     """Get user note using note id"""

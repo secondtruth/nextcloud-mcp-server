@@ -8,6 +8,7 @@ from nextcloud_mcp_server.client import NextcloudClient
 
 # Tests assume NEXTCLOUD_HOST, NEXTCLOUD_USERNAME, NEXTCLOUD_PASSWORD env vars are set
 
+
 @pytest.fixture(scope="module")
 def nc_client() -> NextcloudClient:
     """
@@ -21,6 +22,7 @@ def nc_client() -> NextcloudClient:
     assert os.getenv("NEXTCLOUD_PASSWORD"), "NEXTCLOUD_PASSWORD env var not set"
     return NextcloudClient.from_env()
 
+
 @pytest.mark.integration
 def test_note_crud_integration(nc_client: NextcloudClient):
     """
@@ -28,12 +30,14 @@ def test_note_crud_integration(nc_client: NextcloudClient):
     lifecycle of a note.
     """
     # --- Create ---
-    unique_id = str(uuid.uuid4()) # To ensure note is unique for this test run
+    unique_id = str(uuid.uuid4())  # To ensure note is unique for this test run
     create_title = f"Integration Test Note {unique_id}"
     create_content = f"Content for integration test {unique_id}"
     create_category = "IntegrationTesting"
 
-    created_note = None # Initialize to ensure cleanup happens even if create fails mid-assert
+    created_note = (
+        None  # Initialize to ensure cleanup happens even if create fails mid-assert
+    )
     try:
         print(f"\nAttempting to create note: {create_title}")
         created_note = nc_client.notes_create_note(
@@ -79,9 +83,9 @@ def test_note_crud_integration(nc_client: NextcloudClient):
         assert updated_note["id"] == note_id
         assert updated_note["title"] == update_title
         assert updated_note["content"] == update_content
-        assert updated_note["category"] == create_category # Category wasn't updated
+        assert updated_note["category"] == create_category  # Category wasn't updated
         assert "etag" in updated_note
-        assert updated_note["etag"] != etag # Etag must change on update
+        assert updated_note["etag"] != etag  # Etag must change on update
         new_etag = updated_note["etag"]
 
         # Add a small delay
@@ -101,10 +105,10 @@ def test_note_crud_integration(nc_client: NextcloudClient):
         with pytest.raises(HTTPStatusError) as excinfo:
             nc_client.notes_update_note(
                 note_id=note_id,
-                etag=etag, # Use the OLD etag
+                etag=etag,  # Use the OLD etag
                 title="This update should fail",
             )
-        assert excinfo.value.response.status_code == 412 # Precondition Failed
+        assert excinfo.value.response.status_code == 412  # Precondition Failed
         print("Update with old etag correctly failed with 412.")
 
     finally:
@@ -125,7 +129,9 @@ def test_note_crud_integration(nc_client: NextcloudClient):
                 with pytest.raises(HTTPStatusError) as excinfo_del:
                     nc_client.notes_get_note(note_id=note_id_to_delete)
                 assert excinfo_del.value.response.status_code == 404
-                print(f"Reading deleted note ID: {note_id_to_delete} correctly failed with 404.")
+                print(
+                    f"Reading deleted note ID: {note_id_to_delete} correctly failed with 404."
+                )
 
             except HTTPStatusError as e:
                 # If deletion fails unexpectedly, log it but don't fail the test here
@@ -134,14 +140,19 @@ def test_note_crud_integration(nc_client: NextcloudClient):
             except Exception as e:
                 print(f"Unexpected error during cleanup: {e}")
         else:
-            print("Skipping delete step as note creation might have failed or ID was not available.")
+            print(
+                "Skipping delete step as note creation might have failed or ID was not available."
+            )
+
 
 @pytest.mark.integration
 def test_delete_nonexistent_note(nc_client: NextcloudClient):
     """Test deleting a note that doesn't exist."""
-    non_existent_id = 999999999 # Use an ID highly unlikely to exist
+    non_existent_id = 999999999  # Use an ID highly unlikely to exist
     print(f"\nAttempting to delete non-existent note ID: {non_existent_id}")
     with pytest.raises(HTTPStatusError) as excinfo:
         nc_client.notes_delete_note(note_id=non_existent_id)
     assert excinfo.value.response.status_code == 404
-    print(f"Deleting non-existent note ID: {non_existent_id} correctly failed with 404.")
+    print(
+        f"Deleting non-existent note ID: {non_existent_id} correctly failed with 404."
+    )
