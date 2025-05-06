@@ -2,10 +2,13 @@ import pytest
 import os
 import time
 import uuid
+import logging
 import tempfile
 from httpx import HTTPStatusError
 from PIL import Image, ImageDraw
 from nextcloud_mcp_server.client import NextcloudClient
+
+logger = logging.getLogger(__name__)
 
 # Tests assume NEXTCLOUD_HOST, NEXTCLOUD_USERNAME, NEXTCLOUD_PASSWORD env vars are set
 
@@ -57,7 +60,7 @@ def test_note_with_image_attachment(nc_client: NextcloudClient, test_image):
     
     try:
         # Create the note
-        print(f"Creating note: {note_title}")
+        logger.info(f"Creating note: {note_title}")
         created_note = nc_client.notes_create_note(
             title=note_title,
             content=note_content,
@@ -65,7 +68,7 @@ def test_note_with_image_attachment(nc_client: NextcloudClient, test_image):
         )
         assert created_note and "id" in created_note
         note_id = created_note["id"]
-        print(f"Note created with ID: {note_id}")
+        logger.info(f"Note created with ID: {note_id}")
         time.sleep(1)
         
         # Read the test image
@@ -74,7 +77,7 @@ def test_note_with_image_attachment(nc_client: NextcloudClient, test_image):
         
         # Attach the image to the note
         attachment_filename = f"test_image_{unique_id}.png"
-        print(f"Attaching image to note {note_id}...")
+        logger.info(f"Attaching image to note {note_id}...")
         upload_response = nc_client.add_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
@@ -83,7 +86,7 @@ def test_note_with_image_attachment(nc_client: NextcloudClient, test_image):
         )
         
         assert upload_response["status_code"] in [201, 204]
-        print(f"Image attached successfully (Status: {upload_response['status_code']}).")
+        logger.info(f"Image attached successfully (Status: {upload_response['status_code']}).")
         time.sleep(1)
         
         # Update the note content to include a reference to the attached image
@@ -100,7 +103,7 @@ Files path: `/Notes/.attachments.{note_id}/{attachment_filename}`
 """
         
         # Update the note content
-        print("Updating note content to include image reference...")
+        logger.info("Updating note content to include image reference...")
         updated_note = nc_client.notes_update_note(
             note_id=note_id,
             etag=created_note["etag"],
@@ -109,8 +112,8 @@ Files path: `/Notes/.attachments.{note_id}/{attachment_filename}`
         
         # Retrieve the note to verify content
         retrieved_note = nc_client.notes_get_note(note_id=note_id)
-        print("Retrieved note content:")
-        print(retrieved_note["content"])
+        logger.info("Retrieved note content:")
+        logger.info(retrieved_note["content"])
         
         # Verify the image attachment can be retrieved
         content, mime_type = nc_client.get_note_attachment(
@@ -120,14 +123,14 @@ Files path: `/Notes/.attachments.{note_id}/{attachment_filename}`
         
         assert content == image_content, "Attachment content mismatch"
         assert mime_type.startswith("image/"), f"Expected image mime type, got {mime_type}"
-        print("Image attachment verified")
+        logger.info("Image attachment verified")
             
     finally:
         # Cleanup
         if note_id:
-            print(f"Cleaning up - deleting note ID: {note_id}")
+            logger.info(f"Cleaning up - deleting note ID: {note_id}")
             try:
                 nc_client.notes_delete_note(note_id=note_id)
-                print(f"Note {note_id} deleted")
+                logger.info(f"Note {note_id} deleted")
             except Exception as e:
-                print(f"Error during cleanup: {e}")
+                logger.info(f"Error during cleanup: {e}")

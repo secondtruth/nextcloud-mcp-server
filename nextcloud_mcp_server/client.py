@@ -163,43 +163,17 @@ class NextcloudClient:
         response.raise_for_status()
         json_response = response.json()
         
-        # Then try to delete the attachments directory via WebDAV
-        try:
-            webdav_base = self._get_webdav_base_path()
-            attachments_dir = f"{webdav_base}/Notes/.attachments.{note_id}"
-            logger.info("Deleting attachment directory: %s", attachments_dir)
-            
-            delete_response = self._client.request("DELETE", attachments_dir)
-            # 204 No Content = successful delete, 404 Not Found = already gone (both OK)
-            if delete_response.status_code not in [204, 404]:
-                logger.warning(
-                    "Unexpected status code %s when deleting attachments directory for note %s",
-                    delete_response.status_code,
-                    note_id
-                )
-                
-                # In production, we should not raise an error if the Notes API deletion was successful
-                # but WebDAV cleanup failed - this would leave the note inaccessible to users.
-                # Instead, log the issue for admin attention.
-                if delete_response.status_code == 401:
-                    logger.error(
-                        "Authentication error when trying to delete attachment directory for note %s. "
-                        "Please verify WebDAV permissions.",
-                        note_id
-                    )
-                elif delete_response.status_code >= 400:
-                    logger.error(
-                        "Error (HTTP %s) when trying to delete attachment directory for note %s.",
-                        delete_response.status_code,
-                        note_id
-                    )
-        except Exception as e:
-            # Log but don't fail the operation if attachments cleanup fails
-            logger.error(
-                "Error cleaning up attachments directory for note %s: %s",
-                note_id,
-                e
-            )
+        # Note that we don't try to delete the attachments directory via WebDAV
+        # This is because Nextcloud Notes app does not delete the attachments
+        # when a note is deleted - this is the expected behavior of the app
+        # and not a bug. Attachments remain orphaned in the system.
+        
+        # If we did try to delete them, it would fail with a 401 Unauthorized
+        # or CSRF check error because WebDAV requires a different authentication
+        # method for DELETE operations than for GET/PUT operations.
+        
+        # The test_note_attachment_cleanup.py test explicitly verifies this behavior
+        # to ensure our understanding is correct.
         
         return json_response
 

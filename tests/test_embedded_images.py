@@ -2,10 +2,13 @@ import pytest
 import os
 import time
 import uuid
+import logging
 import tempfile
 from PIL import Image, ImageDraw
 from io import BytesIO
 from nextcloud_mcp_server.client import NextcloudClient
+
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope="module")
 def nc_client() -> NextcloudClient:
@@ -50,7 +53,7 @@ def test_note_with_embedded_image(nc_client: NextcloudClient, test_image):
     initial_content = "# Embedded Image Test\n\nThis note demonstrates how to properly embed images in Nextcloud Notes."
     
     # Create the note
-    print(f"Creating test note: {note_title}")
+    logger.info(f"Creating test note: {note_title}")
     note = nc_client.notes_create_note(
         title=note_title,
         content=initial_content,
@@ -58,7 +61,7 @@ def test_note_with_embedded_image(nc_client: NextcloudClient, test_image):
     )
     note_id = note["id"]
     note_etag = note["etag"]
-    print(f"Note created with ID: {note_id}")
+    logger.info(f"Note created with ID: {note_id}")
     
     try:
         # Read the test image content
@@ -69,14 +72,14 @@ def test_note_with_embedded_image(nc_client: NextcloudClient, test_image):
         attachment_filename = f"test_image_{unique_id}.png"
         
         # Upload the image as an attachment
-        print(f"Uploading image attachment '{attachment_filename}' to note {note_id}...")
+        logger.info(f"Uploading image attachment '{attachment_filename}' to note {note_id}...")
         upload_response = nc_client.add_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
             content=image_content,
             mime_type="image/png"
         )
-        print(f"Image uploaded: {upload_response}")
+        logger.info(f"Image uploaded: {upload_response}")
         
         # Update the note content to include the embedded image using Markdown syntax
         # This is the correct syntax for embedding images in Nextcloud Notes
@@ -98,7 +101,7 @@ This note demonstrates how to properly embed images in Nextcloud Notes.
 """
         
         # Update the note with the image references
-        print("Updating note content with image references...")
+        logger.info("Updating note content with image references...")
         updated_note = nc_client.notes_update_note(
             note_id=note_id,
             etag=note_etag,
@@ -108,7 +111,7 @@ This note demonstrates how to properly embed images in Nextcloud Notes.
         # Verify the updated note has the correct content
         retrieved_note = nc_client.notes_get_note(note_id=note_id)
         assert ".attachments." in retrieved_note["content"], "Image reference not found in note content"
-        print("Note updated successfully with image references")
+        logger.info("Note updated successfully with image references")
         
         # Verify we can retrieve the image attachment
         retrieved_content, mime_type = nc_client.get_note_attachment(
@@ -118,9 +121,9 @@ This note demonstrates how to properly embed images in Nextcloud Notes.
         assert len(retrieved_content) > 0, "Retrieved image content is empty"
         assert mime_type.startswith("image/"), f"Expected image mime type, got {mime_type}"
         
-        print("Test completed successfully - image was embedded in the note and can be retrieved")
+        logger.info("Test completed successfully - image was embedded in the note and can be retrieved")
         
     finally:
         # Clean up - delete the test note
-        print(f"Cleaning up - deleting test note {note_id}")
+        logger.info(f"Cleaning up - deleting test note {note_id}")
         nc_client.notes_delete_note(note_id=note_id)
