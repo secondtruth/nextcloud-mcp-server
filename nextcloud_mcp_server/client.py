@@ -155,7 +155,7 @@ class NextcloudClient:
                         "modified": note.get("modified"),
                     }
             )
-            raise e
+        return search_results
 
     def delete_webdav_resource(self, *, path: str):
         """Delete a resource (file or directory) via WebDAV DELETE."""
