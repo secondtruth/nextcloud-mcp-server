@@ -190,40 +190,32 @@ def test_note_attachment_integration(nc_client: NextcloudClient):
         attachment_mime = "text/plain"
 
         logger.info(f"Attempting to add attachment '{attachment_filename}' to note ID: {note_id}")
-        try:
-            # Try to add the attachment, but don't fail the test if WebDAV isn't available
-            upload_response = nc_client.add_note_attachment(
-                note_id=note_id,
-                filename=attachment_filename,
-                content=attachment_content,
-                mime_type=attachment_mime
-            )
-            
-            # If we get here, WebDAV is working - continue with attachment tests
-            assert upload_response and "status_code" in upload_response
-            assert upload_response["status_code"] in [201, 204]
-            logger.info(f"Attachment '{attachment_filename}' added successfully (Status: {upload_response['status_code']}).")
-            time.sleep(1) # Allow time for upload processing
+        # Assuming WebDAV should work now, directly call add_note_attachment
+        upload_response = nc_client.add_note_attachment(
+            note_id=note_id,
+            filename=attachment_filename,
+            content=attachment_content,
+            mime_type=attachment_mime
+        )
+        
+        assert upload_response and "status_code" in upload_response
+        assert upload_response["status_code"] in [201, 204]
+        logger.info(f"Attachment '{attachment_filename}' added successfully (Status: {upload_response['status_code']}).")
+        time.sleep(1) # Allow time for upload processing
 
-            # --- Get and Verify Attachment ---
-            logger.info(f"Attempting to retrieve attachment '{attachment_filename}' from note ID: {note_id}")
-            retrieved_content, retrieved_mime = nc_client.get_note_attachment(
-                note_id=note_id,
-                filename=attachment_filename
-            )
-            logger.info(f"Attachment retrieved. Mime type: {retrieved_mime}, Size: {len(retrieved_content)} bytes")
+        # --- Get and Verify Attachment ---
+        logger.info(f"Attempting to retrieve attachment '{attachment_filename}' from note ID: {note_id}")
+        retrieved_content, retrieved_mime = nc_client.get_note_attachment(
+            note_id=note_id,
+            filename=attachment_filename
+        )
+        logger.info(f"Attachment retrieved. Mime type: {retrieved_mime}, Size: {len(retrieved_content)} bytes")
 
-            # --- Verify Attachment ---
-            assert retrieved_content == attachment_content
-            # Check if the expected mime type is part of the retrieved one (to handle charset)
-            assert attachment_mime in retrieved_mime
-            logger.info("Retrieved attachment content and mime type verified successfully.")
-            
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                pytest.skip("Skipping attachment tests due to WebDAV permission issues (401 Unauthorized)")
-            else:
-                raise  # Re-raise other HTTP errors
+        # --- Verify Attachment ---
+        assert retrieved_content == attachment_content
+        # Check if the expected mime type is part of the retrieved one (to handle charset)
+        assert attachment_mime in retrieved_mime
+        logger.info("Retrieved attachment content and mime type verified successfully.")
 
     finally:
         # --- Delete Note (Cleanup) ---
@@ -274,39 +266,31 @@ def test_note_attachment_with_category_integration(nc_client: NextcloudClient):
         attachment_mime = "text/plain"
 
         logger.info(f"Attempting to add attachment '{attachment_filename}' to note ID: {note_id}")
-        try:
-            # Try to add the attachment, but don't fail the test if WebDAV isn't available
-            upload_response = nc_client.add_note_attachment(
-                note_id=note_id,
-                filename=attachment_filename,
-                content=attachment_content,
-                mime_type=attachment_mime
-            )
-            
-            # If we get here, WebDAV is working - continue with attachment tests
-            assert upload_response and "status_code" in upload_response
-            assert upload_response["status_code"] in [201, 204]
-            logger.info(f"Attachment '{attachment_filename}' added successfully (Status: {upload_response['status_code']}).")
-            time.sleep(1)
+        # Assuming WebDAV should work now, directly call add_note_attachment
+        upload_response = nc_client.add_note_attachment(
+            note_id=note_id,
+            filename=attachment_filename,
+            content=attachment_content,
+            mime_type=attachment_mime
+        )
+        
+        assert upload_response and "status_code" in upload_response
+        assert upload_response["status_code"] in [201, 204]
+        logger.info(f"Attachment '{attachment_filename}' added successfully (Status: {upload_response['status_code']}).")
+        time.sleep(1)
 
-            # --- Get and Verify Attachment ---
-            logger.info(f"Attempting to retrieve attachment '{attachment_filename}' from note ID: {note_id}")
-            retrieved_content, retrieved_mime = nc_client.get_note_attachment(
-                note_id=note_id,
-                filename=attachment_filename
-            )
-            logger.info(f"Attachment retrieved. Mime type: {retrieved_mime}, Size: {len(retrieved_content)} bytes")
+        # --- Get and Verify Attachment ---
+        logger.info(f"Attempting to retrieve attachment '{attachment_filename}' from note ID: {note_id}")
+        retrieved_content, retrieved_mime = nc_client.get_note_attachment(
+            note_id=note_id,
+            filename=attachment_filename
+        )
+        logger.info(f"Attachment retrieved. Mime type: {retrieved_mime}, Size: {len(retrieved_content)} bytes")
 
-            # --- Verify Attachment ---
-            assert retrieved_content == attachment_content
-            assert attachment_mime in retrieved_mime # Check if expected mime is part of retrieved
-            logger.info("Retrieved attachment content and mime type verified successfully for note with category.")
-            
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                pytest.skip("Skipping attachment tests due to WebDAV permission issues (401 Unauthorized)")
-            else:
-                raise  # Re-raise other HTTP errors
+        # --- Verify Attachment ---
+        assert retrieved_content == attachment_content
+        assert attachment_mime in retrieved_mime # Check if expected mime is part of retrieved
+        logger.info("Retrieved attachment content and mime type verified successfully for note with category.")
 
     finally:
         # --- Delete Note (Cleanup) ---
@@ -359,33 +343,33 @@ def test_attachment_cleanup_behavior(nc_client: NextcloudClient):
     attachment_content = f"Content for cleanup test".encode('utf-8')
     
     logger.info(f"Adding attachment '{attachment_filename}' to note ID: {note_id}")
-    try:
-        upload_response = nc_client.add_note_attachment(
-            note_id=note_id,
-            filename=attachment_filename,
-            content=attachment_content,
-            mime_type="text/plain"
-        )
-        assert upload_response["status_code"] in [201, 204]
-        logger.info(f"Attachment added successfully (Status: {upload_response['status_code']}).")
-        time.sleep(1)
-        
-        # --- Verify Attachment Exists ---
-        retrieved_content, _ = nc_client.get_note_attachment(
-            note_id=note_id,
-            filename=attachment_filename
-        )
-        assert retrieved_content == attachment_content
-        logger.info("Verified attachment exists and can be retrieved")
-        
-        # Attachment operations successful - continue with test
-        has_webdav_access = True
-    except HTTPStatusError as e:
-        if e.response.status_code == 401:
-            logger.info(f"WebDAV access denied (401 Unauthorized). Skipping attachment tests.")
-            pytest.skip("WebDAV access denied (401 Unauthorized)")
-        else:
-            raise  # Re-raise other HTTP errors
+    # Removed try block as we expect WebDAV to work or fail the test
+    upload_response = nc_client.add_note_attachment(
+        note_id=note_id,
+        filename=attachment_filename,
+        content=attachment_content,
+        mime_type="text/plain"
+    )
+    assert upload_response["status_code"] in [201, 204]
+    logger.info(f"Attachment added successfully (Status: {upload_response['status_code']}).")
+    time.sleep(1)
+
+    # --- Verify Attachment Exists ---
+    retrieved_content, _ = nc_client.get_note_attachment(
+        note_id=note_id,
+        filename=attachment_filename
+    )
+    assert retrieved_content == attachment_content
+    logger.info("Verified attachment exists and can be retrieved")
+
+    # Attachment operations successful - continue with test
+        # has_webdav_access = True # No longer needed as we expect it to work or fail
+    # except HTTPStatusError as e: # Removed the try/except block that skipped on 401
+    #     if e.response.status_code == 401:
+    #         logger.info(f"WebDAV access denied (401 Unauthorized). Skipping attachment tests.")
+    #         pytest.skip("WebDAV access denied (401 Unauthorized)")
+    #     else:
+    #         raise  # Re-raise other HTTP errors
     
     # --- Delete Note ---
     logger.info(f"Deleting note ID: {note_id}")
@@ -399,17 +383,12 @@ def test_attachment_cleanup_behavior(nc_client: NextcloudClient):
     assert excinfo.value.response.status_code == 404
     logger.info(f"Verified note deletion (404 received)")
     
-    # --- Document the expected behavior: attachments remain after note deletion ---
-    try:
-        # Try to get the attachment - expected to still exist
-        retrieved_content, _ = nc_client.get_note_attachment(
+    # --- Verify Attachment Is Deleted (New Behavior) ---
+    logger.info(f"Verifying attachment '{attachment_filename}' is deleted for note ID: {note_id}")
+    with pytest.raises(HTTPStatusError) as excinfo_attach_del:
+        nc_client.get_note_attachment(
             note_id=note_id,
             filename=attachment_filename
         )
-        logger.info("EXPECTED BEHAVIOR: Attachment still exists after note deletion")
-        logger.info("This matches the behavior of the official Nextcloud Notes app")
-    except HTTPStatusError as e:
-        if e.response.status_code == 404:
-            logger.info("NOTE: Attachment was deleted with the note (unexpected but not a problem)")
-        else:
-            logger.info(f"Unexpected error when checking attachment: {e.response.status_code}")
+    assert excinfo_attach_del.value.response.status_code == 404
+    logger.info(f"Attachment '{attachment_filename}' correctly not found (404) after note deletion.")
