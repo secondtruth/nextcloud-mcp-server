@@ -108,6 +108,26 @@ def nc_notes_delete_note(note_id: int, ctx: Context):
     return client.notes_delete_note(note_id=note_id)
 
 
+@mcp.resource("nc://Notes/{note_id}/attachments/{attachment_filename}")
+def nc_notes_get_attachment(note_id: int, attachment_filename: str):
+    """Get a specific attachment from a note"""
+    ctx = mcp.get_context()
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    # Assuming a method get_note_attachment exists in the client
+    # This method should return the raw content and determine the mime type
+    content, mime_type = client.get_note_attachment(note_id=note_id, filename=attachment_filename)
+    return {
+        "contents": [
+            {
+                # Use uppercase 'Notes' to match the decorator
+                "uri": f"nc://Notes/{note_id}/attachments/{attachment_filename}",
+                "mimeType": mime_type, # Client needs to determine this
+                "data": content, # Return raw bytes/data
+            }
+        ]
+    }
+
+
 def run():
     mcp.run()
 
