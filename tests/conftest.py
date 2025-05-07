@@ -76,17 +76,20 @@ def temporary_note_with_attachment(nc_client: NextcloudClient, temporary_note: d
     """
     note_data = temporary_note
     note_id = note_data["id"]
+    note_category = note_data.get("category") # Get category from the note data
     unique_suffix = uuid.uuid4().hex[:8]
     attachment_filename = f"temp_attach_{unique_suffix}.txt"
     attachment_content = f"Content for {attachment_filename}".encode('utf-8')
     attachment_mime = "text/plain"
     
-    logger.info(f"Adding attachment '{attachment_filename}' to temporary note ID: {note_id}")
+    logger.info(f"Adding attachment '{attachment_filename}' to temporary note ID: {note_id} (category: '{note_category or ''}')")
     try:
+        # Pass the category to add_note_attachment
         upload_response = nc_client.add_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
             content=attachment_content,
+            category=note_category, # Pass the fetched category
             mime_type=attachment_mime
         )
         assert upload_response.get("status_code") in [201, 204], f"Failed to upload attachment: {upload_response}"

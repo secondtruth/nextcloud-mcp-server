@@ -109,7 +109,19 @@ class NextcloudClient:
         content: str | None = None,
         category: str | None = None,
     ):
-        # body = {"etag": etag} # Removed redundant line
+        # First, get the current note details to check for category change
+        old_note = None
+        try:
+            if category is not None:  # Only fetch if category might change
+                old_note = self.notes_get_note(note_id=note_id)
+                old_category = old_note.get("category", "")
+                logger.info(f"Current category for note {note_id}: '{old_category}'")
+        except Exception as e:
+            logger.warning(f"Could not fetch current note {note_id} details before update: {e}")
+            # Continue with update even if we couldn't fetch current details
+            old_note = None
+
+        # Prepare update body
         body = {}
         if title:
             body.update({"title": title})
@@ -121,14 +133,14 @@ class NextcloudClient:
         logger.info(
             "Attempting to update note %s with etag %s. Body: %s",
             note_id,
-            etag,  # This was current_etag in the loop
+            etag,
             body,
         )
         # Ensure conditional PUT using If-Match header is active
         response = self._client.put(
             url=f"/apps/notes/api/v1/notes/{note_id}",
             json=body,
-            headers={"If-Match": f'"{etag}"'},  # This was current_etag in the loop
+            headers={"If-Match": f'"{etag}"'},
         )
         logger.info(
             "Update response for note %s: Status %s, Headers %s",
@@ -137,25 +149,129 @@ class NextcloudClient:
             response.headers,
         )
         response.raise_for_status()
-        return response.json()
+        updated_note = response.json()
+
+        # Check for category change and clean up old attachment directory if needed
+        if old_note and category is not None and old_note.get("category", "") != category:
+            logger.info(f"Category changed from '{old_note.get('category', '')}' to '{category}' - cleaning up old attachment directory")
+            try:
+                self._cleanup_old_attachment_directory(note_id=note_id, old_category=old_note.get("category", ""))
+            except Exception as e:
+                logger.error(f"Error cleaning up old attachment directory for note {note_id}: {e}")
+                # Continue with update even if cleanup failed
+        
+        return updated_note
 
     def notes_search_notes(self, *, query: str):
+        """
+        Search notes using token-based matching with relevance ranking.
+        Returns notes sorted by relevance score.
+        """
         all_notes = self.notes_get_all()
         search_results = []
-        query_lower = query.lower()
+
+        # Process the query
+        query_tokens = self.process_query(query)
+
+        # If empty query after processing, return empty results
+        if not query_tokens:
+            return []
+
+        # Process and score each note
         for note in all_notes:
-            title_lower = note.get("title", "").lower()
-            content_lower = note.get("content", "").lower()
-            if query_lower in title_lower or query_lower in content_lower:
-                search_results.append(
-                    {
-                        "id": note.get("id"),
-                        "title": note.get("title"),
-                        "category": note.get("category"),
-                        "modified": note.get("modified"),
-                    }
-            )
+            title_tokens, content_tokens = self.process_note_content(note)
+            score = self.calculate_score(query_tokens, title_tokens, content_tokens)
+
+            # Only include notes with a non-zero score
+            if score > 0:
+                search_results.append({
+                    "id": note.get("id"),
+                    "title": note.get("title"),
+                    "category": note.get("category"),
+                    "modified": note.get("modified"),
+                    "_score": score  # Include score for sorting (optional field)
+                })
+
+        # Sort by score in descending order
+        search_results.sort(key=lambda x: x["_score"], reverse=True)
+
+        # Remove score field before returning (optional)
+        for result in search_results:
+            if "_score" in result:
+                del result["_score"]
+
         return search_results
+
+    def process_query(self, query: str) -> list[str]:
+        """
+        Tokenize and normalize the search query.
+        """
+        # Convert to lowercase and split into tokens
+        tokens = query.lower().split()
+        # Filter out very short tokens (optional)
+        tokens = [token for token in tokens if len(token) > 1]
+        # Could add stop word removal here
+        return tokens
+
+    def process_note_content(self, note: dict) -> tuple[list[str], list[str]]:
+        """
+        Tokenize and normalize note title and content.
+        """
+        # Process title
+        title = note.get("title", "").lower()
+        title_tokens = title.split()
+
+        # Process content
+        content = note.get("content", "").lower()
+        content_tokens = content.split()
+
+        return title_tokens, content_tokens
+
+    def calculate_score(self, query_tokens: list[str], title_tokens: list[str], content_tokens: list[str]) -> float:
+        """
+        Calculate a relevance score for a note based on query tokens.
+        """
+        # Constants for weighting
+        TITLE_WEIGHT = 3.0
+        CONTENT_WEIGHT = 1.0
+
+        score = 0.0
+
+        # Count matches in title
+        title_matches = sum(1 for qt in query_tokens if qt in title_tokens)
+        if query_tokens:  # Avoid division by zero
+            title_match_ratio = title_matches / len(query_tokens)
+            score += TITLE_WEIGHT * title_match_ratio
+
+        # Count matches in content
+        content_matches = sum(1 for qt in query_tokens if qt in content_tokens)
+        if query_tokens:  # Avoid division by zero
+            content_match_ratio = content_matches / len(query_tokens)
+            score += CONTENT_WEIGHT * content_match_ratio
+
+        # If no tokens matched at all, return zero
+        if title_matches == 0 and content_matches == 0:
+            return 0.0
+
+        return score
+
+    def _cleanup_old_attachment_directory(self, *, note_id: int, old_category: str):
+        """
+        Clean up the attachment directory for a note in its old category location.
+        Called after a category change to prevent orphaned directories.
+        """
+        # Construct path to old attachment directory
+        old_category_path_part = f"{old_category}/" if old_category else ""
+        old_attachment_dir_path = f"Notes/{old_category_path_part}.attachments.{note_id}/"
+        
+        logger.info(f"Cleaning up old attachment directory: {old_attachment_dir_path}")
+        try:
+            delete_result = self.delete_webdav_resource(path=old_attachment_dir_path)
+            logger.info(f"Cleanup of old attachment directory result: {delete_result}")
+            return delete_result
+        except Exception as e:
+            logger.error(f"Error during cleanup of old attachment directory: {e}")
+            raise e
 
     def delete_webdav_resource(self, *, path: str):
         """Delete a resource (file or directory) via WebDAV DELETE."""
@@ -172,6 +288,19 @@ class NextcloudClient:
 
         headers = {"OCS-APIRequest": "true"}
         try:
+            # First try a PROPFIND to verify resource exists
+            propfind_headers = {"Depth": "0", "OCS-APIRequest": "true"}
+            try:
+                propfind_resp = self._client.request("PROPFIND", webdav_path, headers=propfind_headers)
+                logger.info(f"Resource exists check (PROPFIND) status: {propfind_resp.status_code}")
+                # If we get here with 2xx, the resource exists
+            except HTTPStatusError as e:
+                if e.response.status_code == 404:
+                    logger.info(f"Resource '{webdav_path}' doesn't exist, no deletion needed.")
+                    return {"status_code": 404}
+                # For other errors, continue with deletion attempt
+            
+            # Proceed with deletion
             response = self._client.delete(webdav_path, headers=headers)
             response.raise_for_status() # Raises for 4xx/5xx status codes
             logger.info("Successfully deleted WebDAV resource '%s' (Status: %s)", webdav_path, response.status_code)
@@ -200,21 +329,58 @@ class NextcloudClient:
             raise e
 
     def notes_delete_note(self, *, note_id: int):
-        # First delete the note through the Notes API
-        response = self._client.delete(f"/apps/notes/api/v1/notes/{note_id}")
-        response.raise_for_status()
-        json_response = response.json()
-
-        # Now, attempt to delete the associated attachments directory via WebDAV
-        # Add a trailing slash as suggested
-        attachment_dir_path = f"Notes/.attachments.{note_id}/"
-        logger.info(f"Attempting to delete attachment directory for note {note_id} via WebDAV: {attachment_dir_path}")
+        """Deletes a note via API and attempts to delete its attachment directory via WebDAV."""
+        # Fetch note details first to get the category for path construction
         try:
-            self.delete_webdav_resource(path=attachment_dir_path)
-            logger.info(f"Successfully attempted to delete attachment directory for note {note_id}.")
-        except Exception as e:
-            # Log the error but don't re-raise, as note deletion itself was successful
-            logger.error(f"Failed to delete attachment directory for note {note_id}: {e}")
+            note_details = self.notes_get_note(note_id=note_id)
+            category = note_details.get("category", "")
+            
+            # Check for other potential categories (if any note was moved between categories)
+            # We can't reliably detect this without a dedicated tracking mechanism, but we can
+            # implement a basic check for common category names and empty category
+            potential_categories = []
+            if category:
+                potential_categories.append(category)  # Current category first
+            
+            # Add empty category (uncategorized notes)
+            if category != "":
+                potential_categories.append("")
+                
+            # We could add logic here to check for other common categories if needed
+            
+            logger.info(f"Note {note_id} has category: '{category}', will check attachment directories in: {potential_categories}")
+        except HTTPStatusError as e:
+            # If note doesn't exist (404), we can't delete attachments anyway.
+            # Re-raise other errors.
+            if e.response.status_code == 404:
+                logger.warning(f"Note {note_id} not found when attempting delete. Skipping attachment cleanup.")
+                # Still raise the 404 as the primary delete operation failed
+                raise e
+            else:
+                logger.error(f"Error fetching note {note_id} details before deleting attachments: {e}")
+                raise e # Re-raise unexpected errors during fetch
+
+        # Proceed with API note deletion
+        logger.info(f"Deleting note {note_id} via API.")
+        response = self._client.delete(f"/apps/notes/api/v1/notes/{note_id}")
+        response.raise_for_status() # Raise if API deletion fails
+        logger.info(f"Note {note_id} deleted successfully via API.")
+        json_response = response.json() # Usually empty on success
+
+        # Now, attempt to delete the associated attachments directory via WebDAV for each potential category
+        for cat in potential_categories:
+            cat_path_part = f"{cat}/" if cat else ""
+            attachment_dir_path = f"Notes/{cat_path_part}.attachments.{note_id}/"
+
+            logger.info(f"Attempting to delete attachment directory for note {note_id} in category '{cat}' via WebDAV: {attachment_dir_path}")
+            try:
+                # delete_webdav_resource expects path relative to user's files dir
+                delete_result = self.delete_webdav_resource(path=attachment_dir_path)
+                logger.info(f"WebDAV deletion for category '{cat}' attachment directory: {delete_result}")
+            except Exception as e:
+                # Log the error but don't re-raise, as API note deletion itself was successful
+                # Also, we want to try other potential categories even if one fails
+                logger.error(f"Failed during WebDAV deletion for category '{cat}' attachment directory: {e}")
 
         return json_response
 
@@ -225,13 +391,23 @@ class NextcloudClient:
         # Use the stored username
         return f"/remote.php/dav/files/{self.username}"
 
-    def add_note_attachment(self, *, note_id: int, filename: str, content: bytes, mime_type: str | None = None):
-        """Add/Update an attachment to a note via WebDAV PUT."""
-        # Attachments are stored in a hidden folder .attachments.{note_id} within the Notes folder
+    # Removed _get_note_attachment_webdav_path helper
+
+    def add_note_attachment(self, *, note_id: int, filename: str, content: bytes, category: str | None = None, mime_type: str | None = None):
+        """
+        Add/Update an attachment to a note via WebDAV PUT.
+        Requires the caller to provide the note's category.
+        """
+        # Construct paths based on provided category
         webdav_base = self._get_webdav_base_path()
-        attachment_path = f"{webdav_base}/Notes/.attachments.{note_id}/{filename}"
-        logger.info("Uploading attachment to WebDAV path: %s", attachment_path)
-        
+        category_path_part = f"{category}/" if category else ""
+        attachment_dir_segment = f".attachments.{note_id}"
+        parent_dir_webdav_rel_path = f"Notes/{category_path_part}{attachment_dir_segment}"
+        parent_dir_path = f"{webdav_base}/{parent_dir_webdav_rel_path}" # Full path for MKCOL
+        attachment_path = f"{parent_dir_path}/{filename}" # Full path for PUT
+
+        logger.info(f"Uploading attachment for note {note_id} (category: '{category or ''}') to WebDAV path: {attachment_path}")
+
         # Log current auth settings to diagnose the issue
         logger.info("WebDAV auth settings - Username: %s, Auth Type: %s", 
                    self.username, type(self._client.auth).__name__)
@@ -275,12 +451,12 @@ class NextcloudClient:
                            notes_dir_response.status_code)
             
             # Ensure the parent directory exists using MKCOL
-            parent_dir_path = f"{webdav_base}/Notes/.attachments.{note_id}"
-            logger.info("Creating attachments directory: %s", parent_dir_path)
+            # parent_dir_path is now determined by the helper method
+            logger.info("Ensuring attachments directory exists: %s", parent_dir_path)
             mkcol_headers = {"OCS-APIRequest": "true"}
             logger.info("Headers for MKCOL (Attachments dir): %s", mkcol_headers)
             mkcol_response = self._client.request("MKCOL", parent_dir_path, headers=mkcol_headers)
-            # MKCOL should return 201 Created or 405 Method Not Allowed (if exists)
+            # MKCOL should return 201 Created or 405 Method Not Allowed (if directory already exists)
             # We can ignore 405, but raise for other errors
             if mkcol_response.status_code not in [201, 405]:
                 logger.warning(
@@ -321,11 +497,18 @@ class NextcloudClient:
             )
             raise e
 
-    def get_note_attachment(self, *, note_id: int, filename: str):
-        """Fetch a specific attachment from a note via WebDAV GET."""
+    def get_note_attachment(self, *, note_id: int, filename: str, category: str | None = None):
+        """
+        Fetch a specific attachment from a note via WebDAV GET.
+        Requires the caller to provide the note's category.
+        """
+        # Construct path based on provided category
         webdav_base = self._get_webdav_base_path()
-        attachment_path = f"{webdav_base}/Notes/.attachments.{note_id}/{filename}"
-        logger.info("Fetching attachment from WebDAV path: %s", attachment_path)
+        category_path_part = f"{category}/" if category else ""
+        attachment_dir_segment = f".attachments.{note_id}"
+        attachment_path = f"{webdav_base}/Notes/{category_path_part}{attachment_dir_segment}/{filename}"
+
+        logger.info(f"Fetching attachment for note {note_id} (category: '{category or ''}') from WebDAV path: {attachment_path}")
 
         try:
             response = self._client.get(attachment_path)

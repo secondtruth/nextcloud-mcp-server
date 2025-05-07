@@ -53,16 +53,33 @@ def test_note_with_embedded_image(nc_client: NextcloudClient, temporary_note: di
     attachment_filename = f"test_image_{unique_suffix}.png" # Make filename unique per run
 
     # 1. Upload the image as an attachment
-    logger.info(f"Uploading image attachment '{attachment_filename}' to note {note_id}...")
+    note_category = note_data.get("category") # Get category from fixture data
+    logger.info(f"Uploading image attachment '{attachment_filename}' to note {note_id} (category: '{note_category or ''}')...")
     upload_response = nc_client.add_note_attachment(
         note_id=note_id,
         filename=attachment_filename,
         content=image_content,
+        category=note_category, # Pass the category
         mime_type="image/png"
     )
     assert upload_response and upload_response.get("status_code") in [201, 204]
     logger.info(f"Image uploaded successfully (Status: {upload_response.get('status_code')}).")
     time.sleep(1) # Allow potential processing time
+
+    # 1.1 Verify attachment directory exists via WebDAV PROPFIND
+    logger.info(f"Directly checking if attachment directory exists in WebDAV")
+    webdav_base = nc_client._get_webdav_base_path()
+    category_path_part = f"{note_category}/" if note_category else ""
+    attachment_dir_path = f"{webdav_base}/Notes/{category_path_part}.attachments.{note_id}"
+    propfind_headers = {"Depth": "0", "OCS-APIRequest": "true"}
+    try:
+        propfind_resp = nc_client._client.request("PROPFIND", attachment_dir_path, headers=propfind_headers)
+        status = propfind_resp.status_code
+        assert status in [207, 200], f"Expected PROPFIND to return success (207/200), got {status}"
+        logger.info(f"Verified attachment directory exists via PROPFIND ({status} received)")
+    except HTTPStatusError as e:
+        logger.error(f"Attachment directory not found! PROPFIND failed with {e.response.status_code}")
+        assert False, f"Expected attachment directory to exist, but PROPFIND failed with {e.response.status_code}"
 
     # 2. Update the note content to include the embedded image references
     updated_content = f"""{note_data['content']}
@@ -94,13 +111,40 @@ def test_note_with_embedded_image(nc_client: NextcloudClient, temporary_note: di
     logger.info("Verified image reference exists in updated note content.")
 
     # 4. Verify the image attachment can be retrieved
-    logger.info(f"Retrieving image attachment '{attachment_filename}'...")
+    logger.info(f"Retrieving image attachment '{attachment_filename}' (category: '{note_category or ''}')...")
+    # Pass category to get_note_attachment
     retrieved_img_content, mime_type = nc_client.get_note_attachment(
         note_id=note_id,
-        filename=attachment_filename
+        filename=attachment_filename,
+        category=note_category
     )
     assert retrieved_img_content == image_content
     assert mime_type.startswith("image/png")
     logger.info("Successfully retrieved and verified image attachment content and mime type.")
 
-    # Note cleanup is handled by the temporary_note fixture
+    # 5. Manually trigger deletion to verify cleanup (instead of waiting for fixture teardown)
+    logger.info(f"Manually deleting note ID: {note_id} to verify proper attachment cleanup")
+    nc_client.notes_delete_note(note_id=note_id)
+    logger.info(f"Note ID: {note_id} deleted successfully.")
+    time.sleep(1)
+
+    # 6. Verify note is deleted
+    with pytest.raises(HTTPStatusError) as excinfo_note:
+        nc_client.notes_get_note(note_id=note_id)
+    assert excinfo_note.value.response.status_code == 404
+    logger.info(f"Verified note {note_id} deletion (404 received).")
+
+    # 7. Verify attachment directory is deleted via WebDAV PROPFIND
+    logger.info(f"Directly verifying attachment directory doesn't exist via PROPFIND")
+    try:
+        propfind_resp = nc_client._client.request("PROPFIND", attachment_dir_path, headers=propfind_headers)
+        status = propfind_resp.status_code
+        if status in [200, 207]: # Successful PROPFIND means directory exists
+            logger.error(f"Attachment directory still exists! PROPFIND returned {status}")
+            assert False, f"Expected attachment directory to be gone, but PROPFIND returned {status}!"
+    except HTTPStatusError as e:
+        assert e.response.status_code == 404, f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+        logger.info(f"Verified attachment directory does not exist via PROPFIND (404 received)")
+    
+    # Note: The temporary_note fixture will still run its cleanup,
+    # but it will find the note already deleted (404) and handle it gracefully.
