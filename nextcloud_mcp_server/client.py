@@ -195,10 +195,10 @@ class NextcloudClient:
         # Sort by score in descending order
         search_results.sort(key=lambda x: x["_score"], reverse=True)
 
-        # Remove score field before returning (optional)
-        for result in search_results:
-            if "_score" in result:
-                del result["_score"]
+        # Keep score field for debugging
+        # for result in search_results:
+        #     if "_score" in result:
+        #         del result["_score"]
 
         return search_results
 
