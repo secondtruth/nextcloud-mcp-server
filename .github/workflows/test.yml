@@ -40,8 +40,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update -y && sudo apt install -y pipx
-          pipx install poetry
-          poetry install
+          pipx install uv
+          uv sync
         env:
           DEBIAN_FRONTEND: "noninteractive"
 
@@ -52,4 +52,4 @@ jobs:
           NEXTCLOUD_USERNAME: "admin"
           NEXTCLOUD_PASSWORD: "admin"
         run: |
-          poetry run python -m pytest
+          uv run python -m pytest
