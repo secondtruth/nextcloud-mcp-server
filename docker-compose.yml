@@ -21,7 +21,7 @@ services:
     restart: always
 
   app:
-    image: nextcloud:31.0.5-fpm-alpine
+    image: nextcloud:31.0.5
     #user: www-data:www-data
     restart: always
     #post_start:
