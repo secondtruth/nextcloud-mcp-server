@@ -19,10 +19,10 @@ def test_notes_api_create_and_read(nc_client: NextcloudClient, temporary_note: d
     """
     created_note_data = temporary_note # Get data from fixture
     note_id = created_note_data["id"]
-    
+
     logger.info(f"Reading note created by fixture, ID: {note_id}")
     read_note = nc_client.notes_get_note(note_id=note_id)
-    
+
     assert read_note["id"] == note_id
     assert read_note["title"] == created_note_data["title"]
     assert read_note["content"] == created_note_data["content"]
@@ -40,7 +40,7 @@ def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict):
 
     update_title = f"Updated Title {uuid.uuid4().hex[:8]}"
     update_content = f"Updated Content {uuid.uuid4().hex[:8]}"
-    
+
     logger.info(f"Attempting to update note ID: {note_id} with etag: {original_etag}")
     updated_note = nc_client.notes_update_note(
         note_id=note_id,
@@ -50,7 +50,7 @@ def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict):
         # category=original_category # Explicitly pass category if required by update
     )
     logger.info(f"Note updated: {updated_note}")
-    
+
     assert updated_note["id"] == note_id
     assert updated_note["title"] == update_title
     assert updated_note["content"] == update_content
@@ -110,5 +110,131 @@ def test_notes_api_delete_nonexistent(nc_client: NextcloudClient):
         nc_client.notes_delete_note(note_id=non_existent_id)
     assert excinfo.value.response.status_code == 404
     logger.info(f"Deleting non-existent note ID: {non_existent_id} correctly failed with 404.")
+
+def test_notes_api_append_content_to_existing_note(nc_client: NextcloudClient, temporary_note: dict):
+    """
+    Tests appending content to an existing note using the new append functionality.
+    """
+    created_note_data = temporary_note
+    note_id = created_note_data["id"]
+    original_content = created_note_data["content"]
+
+    append_text = f"Appended content {uuid.uuid4().hex[:8]}"
+
+    logger.info(f"Appending content to note ID: {note_id}")
+    updated_note = nc_client.notes_append_content(
+        note_id=note_id,
+        content=append_text
+    )
+    logger.info(f"Note after append: {updated_note}")
+
+    # Verify the note was updated
+    assert updated_note["id"] == note_id
+    assert "etag" in updated_note
+    assert updated_note["etag"] != created_note_data["etag"] # Etag must change
+
+    # Verify content has the separator and appended text
+    expected_content = original_content + "\n---\n" + append_text
+    assert updated_note["content"] == expected_content
+
+    # Verify by reading the note again
+    time.sleep(1) # Allow potential propagation delay
+    read_note = nc_client.notes_get_note(note_id=note_id)
+    assert read_note["content"] == expected_content
+    logger.info(f"Successfully appended content to note ID: {note_id}")
+
+def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient):
+    """
+    Tests appending content to an empty note (no separator should be added).
+    """
+    # Create an empty note
+    test_title = f"Empty Note {uuid.uuid4().hex[:8]}"
+    test_category = "Test"
+
+    logger.info(f"Creating empty note for append test")
+    empty_note = nc_client.notes_create_note(
+        title=test_title,
+        content="",  # Empty content
+        category=test_category
+    )
+    note_id = empty_note["id"]
+
+    try:
+        append_text = f"First content {uuid.uuid4().hex[:8]}"
+
+        logger.info(f"Appending content to empty note ID: {note_id}")
+        updated_note = nc_client.notes_append_content(
+            note_id=note_id,
+            content=append_text
+        )
+
+        # For empty notes, content should just be the appended text (no separator)
+        assert updated_note["content"] == append_text
+
+        # Verify by reading the note again
+        time.sleep(1)
+        read_note = nc_client.notes_get_note(note_id=note_id)
+        assert read_note["content"] == append_text
+        logger.info(f"Successfully appended content to empty note ID: {note_id}")
+
+    finally:
+        # Clean up the test note
+        try:
+            nc_client.notes_delete_note(note_id=note_id)
+            logger.info(f"Cleaned up test note ID: {note_id}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up test note ID: {note_id}: {e}")
+
+def test_notes_api_append_content_multiple_times(nc_client: NextcloudClient, temporary_note: dict):
+    """
+    Tests appending content multiple times to verify separator behavior.
+    """
+    created_note_data = temporary_note
+    note_id = created_note_data["id"]
+    original_content = created_note_data["content"]
+
+    first_append = f"First append {uuid.uuid4().hex[:8]}"
+    second_append = f"Second append {uuid.uuid4().hex[:8]}"
+
+    logger.info(f"Performing multiple appends to note ID: {note_id}")
+
+    # First append
+    updated_note = nc_client.notes_append_content(
+        note_id=note_id,
+        content=first_append
+    )
+
+    expected_content_after_first = original_content + "\n---\n" + first_append
+    assert updated_note["content"] == expected_content_after_first
+
+    # Second append
+    updated_note = nc_client.notes_append_content(
+        note_id=note_id,
+        content=second_append
+    )
+
+    expected_content_after_second = expected_content_after_first + "\n---\n" + second_append
+    assert updated_note["content"] == expected_content_after_second
+
+    # Verify by reading the note again
+    time.sleep(1)
+    read_note = nc_client.notes_get_note(note_id=note_id)
+    assert read_note["content"] == expected_content_after_second
+    logger.info(f"Successfully performed multiple appends to note ID: {note_id}")
+
+def test_notes_api_append_content_nonexistent_note(nc_client: NextcloudClient):
+    """
+    Tests that appending to a non-existent note fails with 404.
+    """
+    non_existent_id = 999999999
+
+    logger.info(f"Attempting to append to non-existent note ID: {non_existent_id}")
+    with pytest.raises(HTTPStatusError) as excinfo:
+        nc_client.notes_append_content(
+            note_id=non_existent_id,
+            content="This should fail"
+        )
+    assert excinfo.value.response.status_code == 404
+    logger.info(f"Appending to non-existent note ID: {non_existent_id} correctly failed with 404.")
 
 # --- Attachment tests moved to test_attachments.py ---

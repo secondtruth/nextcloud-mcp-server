@@ -159,8 +159,36 @@ class NextcloudClient:
             except Exception as e:
                 logger.error(f"Error cleaning up old attachment directory for note {note_id}: {e}")
                 # Continue with update even if cleanup failed
-        
+
         return updated_note
+
+    def notes_append_content(self, *, note_id: int, content: str):
+        """Append content to an existing note with a standard separator"""
+        logger.info(f"Appending content to note {note_id}")
+
+        # Get current note
+        current_note = self.notes_get_note(note_id=note_id)
+
+        # Use fixed separator for consistency
+        separator = "\n---\n"
+
+        # Combine content
+        existing_content = current_note.get("content", "")
+        if existing_content:
+            new_content = existing_content + separator + content
+        else:
+            new_content = content  # No separator needed for empty notes
+
+        logger.info(f"Combining existing content ({len(existing_content)} chars) with new content ({len(content)} chars)")
+
+        # Update with combined content
+        return self.notes_update_note(
+            note_id=note_id,
+            etag=current_note["etag"],
+            content=new_content,
+            title=None,  # Keep existing title
+            category=None  # Keep existing category
+        )
 
     def notes_search_notes(self, *, query: str):
         """
@@ -263,7 +291,7 @@ class NextcloudClient:
         # Construct path to old attachment directory
         old_category_path_part = f"{old_category}/" if old_category else ""
         old_attachment_dir_path = f"Notes/{old_category_path_part}.attachments.{note_id}/"
-        
+
         logger.info(f"Cleaning up old attachment directory: {old_attachment_dir_path}")
         try:
             delete_result = self.delete_webdav_resource(path=old_attachment_dir_path)
@@ -299,7 +327,7 @@ class NextcloudClient:
                     logger.info(f"Resource '{webdav_path}' doesn't exist, no deletion needed.")
                     return {"status_code": 404}
                 # For other errors, continue with deletion attempt
-            
+
             # Proceed with deletion
             response = self._client.delete(webdav_path, headers=headers)
             response.raise_for_status() # Raises for 4xx/5xx status codes
@@ -308,7 +336,7 @@ class NextcloudClient:
             return {"status_code": response.status_code}
 
         except HTTPStatusError as e:
-            logger.error(
+            logger.warning(
                 "HTTP error deleting WebDAV resource '%s': %s",
                 webdav_path,
                 e,
@@ -321,7 +349,7 @@ class NextcloudClient:
                 logger.info("Resource '%s' not found, no deletion needed.", webdav_path)
                 return {"status_code": 404} # Indicate resource was not found
         except Exception as e:
-            logger.error(
+            logger.warning(
                 "Unexpected error deleting WebDAV resource '%s': %s",
                 webdav_path,
                 e,
@@ -334,20 +362,20 @@ class NextcloudClient:
         try:
             note_details = self.notes_get_note(note_id=note_id)
             category = note_details.get("category", "")
-            
+
             # Check for other potential categories (if any note was moved between categories)
             # We can't reliably detect this without a dedicated tracking mechanism, but we can
             # implement a basic check for common category names and empty category
             potential_categories = []
             if category:
                 potential_categories.append(category)  # Current category first
-            
+
             # Add empty category (uncategorized notes)
             if category != "":
                 potential_categories.append("")
-                
+
             # We could add logic here to check for other common categories if needed
-            
+
             logger.info(f"Note {note_id} has category: '{category}', will check attachment directories in: {potential_categories}")
         except HTTPStatusError as e:
             # If note doesn't exist (404), we can't delete attachments anyway.
@@ -380,7 +408,7 @@ class NextcloudClient:
             except Exception as e:
                 # Log the error but don't re-raise, as API note deletion itself was successful
                 # Also, we want to try other potential categories even if one fails
-                logger.error(f"Failed during WebDAV deletion for category '{cat}' attachment directory: {e}")
+                logger.warning(f"Failed during WebDAV deletion for category '{cat}' attachment directory: {e}")
 
         return json_response
 
@@ -409,7 +437,7 @@ class NextcloudClient:
         logger.info(f"Uploading attachment for note {note_id} (category: '{category or ''}') to WebDAV path: {attachment_path}")
 
         # Log current auth settings to diagnose the issue
-        logger.info("WebDAV auth settings - Username: %s, Auth Type: %s", 
+        logger.info("WebDAV auth settings - Username: %s, Auth Type: %s",
                    self.username, type(self._client.auth).__name__)
 
         if not mime_type:
@@ -423,7 +451,7 @@ class NextcloudClient:
             # by checking the Notes directory
             notes_dir_path = f"{webdav_base}/Notes"
             logger.info("Testing WebDAV access to Notes directory: %s", notes_dir_path)
-            
+
             # Log details of the auth being used by the client for this specific request
             if self._client.auth:
                 auth_header = self._client.auth.auth_flow(self._client.build_request("GET", notes_dir_path)).__next__().headers.get("Authorization")
@@ -433,9 +461,9 @@ class NextcloudClient:
 
             propfind_headers = {"Depth": "0", "OCS-APIRequest": "true"}
             logger.info("Headers for PROPFIND (Notes dir): %s", propfind_headers)
-            notes_dir_response = self._client.request("PROPFIND", notes_dir_path, 
+            notes_dir_response = self._client.request("PROPFIND", notes_dir_path,
                                                     headers=propfind_headers)
-            
+
             if notes_dir_response.status_code == 401:
                 logger.error("WebDAV authentication failed for Notes directory. Please verify WebDAV permissions.")
                 raise HTTPStatusError(
@@ -447,9 +475,9 @@ class NextcloudClient:
                 logger.error("Error accessing WebDAV Notes directory: %s", notes_dir_response.status_code)
                 notes_dir_response.raise_for_status()
             else:
-                logger.info("Successfully accessed WebDAV Notes directory (Status: %s)", 
+                logger.info("Successfully accessed WebDAV Notes directory (Status: %s)",
                            notes_dir_response.status_code)
-            
+
             # Ensure the parent directory exists using MKCOL
             # parent_dir_path is now determined by the helper method
             logger.info("Ensuring attachments directory exists: %s", parent_dir_path)
@@ -465,7 +493,7 @@ class NextcloudClient:
                 )
                 mkcol_response.raise_for_status()
             else:
-                logger.info("Created/verified directory: %s (Status: %s)", 
+                logger.info("Created/verified directory: %s (Status: %s)",
                            parent_dir_path, mkcol_response.status_code)
 
             # Proceed with the PUT request
