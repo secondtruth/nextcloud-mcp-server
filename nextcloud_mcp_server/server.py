@@ -99,6 +99,14 @@ def nc_notes_update_note(
 
 
 @mcp.tool()
+def nc_notes_append_content(note_id: int, content: str, ctx: Context):
+    """Append content to an existing note with a clear separator"""
+    logger.info("Appending content to note %s", note_id)
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return client.notes_append_content(note_id=note_id, content=content)
+
+
+@mcp.tool()
 def nc_notes_search_notes(query: str, ctx: Context):
     """Search notes by title or content, returning only id, title, and category."""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
