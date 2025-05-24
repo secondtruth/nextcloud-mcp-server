@@ -41,7 +41,7 @@ jobs:
         run: |
           sudo apt update -y && sudo apt install -y pipx
           pipx install uv
-          uv sync
+          uv sync --frozen
         env:
           DEBIAN_FRONTEND: "noninteractive"
 

@@ -24,6 +24,13 @@ markers = [
     "integration: marks tests as slow (deselect with '-m \"not slow\"')"
 ]
 
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -32,6 +39,7 @@ build-backend = "poetry.core.masonry.api"
 [dependency-groups]
 dev = [
     "black>=25.1.0",
+    "commitizen>=4.8.2",
     "ipython>=9.2.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
