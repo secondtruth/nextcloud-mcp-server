@@ -17,6 +17,14 @@ jobs:
         with:
           compose-file: "./docker-compose.yml"
 
+      - name: Install dependencies
+        run: |
+          sudo apt update -y && sudo apt install -y pipx
+          pipx install uv
+          uv sync --locked
+        env:
+          DEBIAN_FRONTEND: "noninteractive"
+
       - name: Wait for service to be ready
         run: |
           echo "Waiting for service at http://localhost:8080/ocs/v2.php/apps/serverinfo/api/v1/info to return 401..."
@@ -36,14 +44,6 @@ jobs:
       - name: Install notes app
         run: |
           docker compose exec app php occ app:enable notes
-
-      - name: Install dependencies
-        run: |
-          sudo apt update -y && sudo apt install -y pipx
-          pipx install uv
-          uv sync --locked
-        env:
-          DEBIAN_FRONTEND: "noninteractive"
 
       # Add subsequent steps here, e.g., running tests
       - name: Run tests
