@@ -1,3 +1,11 @@
+## v0.2.1 (2025-05-24)
+
+### Fix
+
+- Install deps before checking service
+
+## v0.2.1 (2025-05-24)
+
 ## v0.2.0 (2025-05-24)
 
 ### Feat
