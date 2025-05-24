@@ -11,7 +11,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -22,7 +21,6 @@ jobs:
         with:
           # list of Docker images to use as base name for tags
           images: |
-            #cbcoutinho/nextcloud-mcp-server
             ghcr.io/cbcoutinho/nextcloud-mcp-server
           # generate Docker tags based on the following events/attributes
           tags: |
