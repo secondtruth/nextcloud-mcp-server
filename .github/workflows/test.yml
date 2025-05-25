@@ -16,14 +16,8 @@ jobs:
         uses: hoverkraft-tech/compose-action@8be2d741e891ac9b8ac20825e6f3904149599925 # v2.2.0
         with:
           compose-file: "./docker-compose.yml"
-
-      - name: Install dependencies
-        run: |
-          sudo apt update -y && sudo apt install -y pipx
-          pipx install uv
-          uv sync --locked
-        env:
-          DEBIAN_FRONTEND: "noninteractive"
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Wait for service to be ready
         run: |
@@ -48,4 +42,4 @@ jobs:
           NEXTCLOUD_USERNAME: "admin"
           NEXTCLOUD_PASSWORD: "admin"
         run: |
-          uv run python -m pytest
+          uv run --frozen python -m pytest
