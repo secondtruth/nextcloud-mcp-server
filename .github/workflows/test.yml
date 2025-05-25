@@ -19,8 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update -y && sudo apt install -y pipx
-          pipx install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
           uv sync --locked
         env:
           DEBIAN_FRONTEND: "noninteractive"
