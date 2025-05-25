@@ -34,6 +34,7 @@ services:
       - db
     volumes:
       - nextcloud:/var/www/html
+      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation:ro
     environment:
       - NEXTCLOUD_TRUSTED_DOMAINS=app
       - NEXTCLOUD_ADMIN_USER=admin
