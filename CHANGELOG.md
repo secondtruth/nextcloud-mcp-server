@@ -1,3 +1,9 @@
+## v0.2.3 (2025-05-25)
+
+### Fix
+
+- Limit search results to notes with score > 0.5
+
 ## v0.2.2 (2025-05-24)
 
 ### Fix
