@@ -11,8 +11,6 @@ import asyncio  # Import asyncio
 
 setup_logging()
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class AppContext:
@@ -23,11 +21,9 @@ class AppContext:
 async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     """Manage application lifecycle with type-safe context"""
     # Initialize on startup
-    logger.info("Creating Nextcloud client")
+    logging.info("Creating Nextcloud client")
     client = NextcloudClient.from_env()
-    # Add a small delay to allow client initialization to complete
-    logger.info("Waiting 2 seconds for client initialization...")
-    logger.info("Client initialization wait complete.")
+    logging.info("Client initialization wait complete.")
     try:
         yield AppContext(client=client)
     finally:
@@ -37,6 +33,8 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 # Create an MCP server
 mcp = FastMCP("Nextcloud MCP", lifespan=app_lifespan)
+
+logger = logging.getLogger(__name__)
 
 
 @mcp.resource("nc://capabilities")

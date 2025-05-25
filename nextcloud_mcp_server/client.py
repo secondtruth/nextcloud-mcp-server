@@ -1,12 +1,9 @@
 import os
-import time  # Import time for sleep
 import mimetypes
-from io import BytesIO
 from httpx import (
     Client,
     Auth,
     BasicAuth,
-    Headers,
     Request,
     Response,
     HTTPStatusError,

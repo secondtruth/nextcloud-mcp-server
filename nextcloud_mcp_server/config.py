@@ -4,11 +4,8 @@ LOGGING_CONFIG = {
     "version": 1,
     "handlers": {
         "default": {
-            "class": "logging.FileHandler",
+            "class": "logging.StreamHandler",
             "formatter": "http",
-            # "stream": "ext://sys.stderr"
-            "filename": "/tmp/nextcloud-mcp-server.log",
-            "mode": "a",
         }
     },
     "formatters": {
