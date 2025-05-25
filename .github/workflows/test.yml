@@ -17,7 +17,7 @@ jobs:
         with:
           compose-file: "./docker-compose.yml"
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb # v6
 
       - name: Wait for service to be ready
         run: |
