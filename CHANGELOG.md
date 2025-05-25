@@ -1,3 +1,9 @@
+## v0.2.5 (2025-05-25)
+
+### Fix
+
+- Commitizen release process
+
 ## v0.2.4 (2025-05-25)
 
 ### Fix
