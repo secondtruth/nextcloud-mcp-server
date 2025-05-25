@@ -6,4 +6,4 @@ COPY . .
 
 RUN uv sync --locked
 
-CMD ["uv", "run", "mcp", "run", "--transport", "sse", "nextcloud_mcp_server/server.py:mcp"]
+CMD ["uv", "run", "--locked", "mcp", "run", "--transport", "sse", "nextcloud_mcp_server/server.py:mcp"]
