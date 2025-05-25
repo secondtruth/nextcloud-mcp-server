@@ -1,3 +1,10 @@
+## v0.2.4 (2025-05-25)
+
+### Fix
+
+- Do not update dependencies when running in Dockerfile
+- Configure logging
+
 ## v0.2.3 (2025-05-25)
 
 ### Fix
