@@ -211,7 +211,7 @@ class NextcloudClient:
             score = self.calculate_score(query_tokens, title_tokens, content_tokens)
 
             # Only include notes with a non-zero score
-            if score > 0:
+            if score >= 0.5:
                 search_results.append({
                     "id": note.get("id"),
                     "title": note.get("title"),
