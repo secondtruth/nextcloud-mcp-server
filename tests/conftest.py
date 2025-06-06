@@ -72,7 +72,9 @@ async def temporary_note(nc_client: NextcloudClient):
 
 
 @pytest.fixture
-async def temporary_note_with_attachment(nc_client: NextcloudClient, temporary_note: dict):
+async def temporary_note_with_attachment(
+    nc_client: NextcloudClient, temporary_note: dict
+):
     """
     Fixture that creates a temporary note, adds an attachment, and cleans up both.
     Yields a tuple: (note_data, attachment_filename, attachment_content).

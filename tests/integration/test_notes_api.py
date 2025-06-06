@@ -15,7 +15,9 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
-async def test_notes_api_create_and_read(nc_client: NextcloudClient, temporary_note: dict):
+async def test_notes_api_create_and_read(
+    nc_client: NextcloudClient, temporary_note: dict
+):
     """
     Tests creating a note via the API (using fixture) and then reading it back.
     """
@@ -73,7 +75,9 @@ async def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict
 
 
 @pytest.mark.asyncio
-async def test_notes_api_update_conflict(nc_client: NextcloudClient, temporary_note: dict):
+async def test_notes_api_update_conflict(
+    nc_client: NextcloudClient, temporary_note: dict
+):
     """
     Tests that attempting to update with an old etag fails with 412.
     """
@@ -140,7 +144,9 @@ async def test_notes_api_append_content_to_existing_note(
     append_text = f"Appended content {uuid.uuid4().hex[:8]}"
 
     logger.info(f"Appending content to note ID: {note_id}")
-    updated_note = await nc_client.notes_append_content(note_id=note_id, content=append_text)
+    updated_note = await nc_client.notes_append_content(
+        note_id=note_id, content=append_text
+    )
     logger.info(f"Note after append: {updated_note}")
 
     # Verify the note was updated
@@ -219,7 +225,9 @@ async def test_notes_api_append_content_multiple_times(
     logger.info(f"Performing multiple appends to note ID: {note_id}")
 
     # First append
-    updated_note = await nc_client.notes_append_content(note_id=note_id, content=first_append)
+    updated_note = await nc_client.notes_append_content(
+        note_id=note_id, content=first_append
+    )
 
     expected_content_after_first = original_content + "\n---\n" + first_append
     assert updated_note["content"] == expected_content_after_first

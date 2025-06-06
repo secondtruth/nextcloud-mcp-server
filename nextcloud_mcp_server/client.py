@@ -304,7 +304,9 @@ class NextcloudClient:
 
         return score
 
-    async def _cleanup_old_attachment_directory(self, *, note_id: int, old_category: str):
+    async def _cleanup_old_attachment_directory(
+        self, *, note_id: int, old_category: str
+    ):
         """
         Clean up the attachment directory for a note in its old category location.
         Called after a category change to prevent orphaned directories.
@@ -317,7 +319,9 @@ class NextcloudClient:
 
         logger.info(f"Cleaning up old attachment directory: {old_attachment_dir_path}")
         try:
-            delete_result = await self.delete_webdav_resource(path=old_attachment_dir_path)
+            delete_result = await self.delete_webdav_resource(
+                path=old_attachment_dir_path
+            )
             logger.info(f"Cleanup of old attachment directory result: {delete_result}")
             return delete_result
         except Exception as e:
@@ -444,7 +448,9 @@ class NextcloudClient:
             )
             try:
                 # delete_webdav_resource expects path relative to user's files dir
-                delete_result = await self.delete_webdav_resource(path=attachment_dir_path)
+                delete_result = await self.delete_webdav_resource(
+                    path=attachment_dir_path
+                )
                 logger.info(
                     f"WebDAV deletion for category '{cat}' attachment directory: {delete_result}"
                 )
