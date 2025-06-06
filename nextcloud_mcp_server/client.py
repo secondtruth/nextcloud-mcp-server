@@ -3,7 +3,6 @@ import datetime as dt
 import mimetypes
 from httpx import (
     AsyncClient,
-    Client,
     Auth,
     BasicAuth,
     Request,
