@@ -1,3 +1,9 @@
+## v0.3.0 (2025-06-06)
+
+### Feat
+
+- Switch to using async client
+
 ## v0.2.5 (2025-05-25)
 
 ### Fix
