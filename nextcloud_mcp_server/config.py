@@ -17,7 +17,7 @@ LOGGING_CONFIG = {
     "loggers": {
         "": {
             "handlers": ["default"],
-            "level": "DEBUG",
+            "level": "INFO",
         },
         "httpx": {
             "handlers": ["default"],

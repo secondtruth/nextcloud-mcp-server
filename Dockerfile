@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN uv sync --locked
+RUN uv sync --locked --no-dev
 
-CMD ["uv", "run", "--locked", "mcp", "run", "--transport", "sse", "nextcloud_mcp_server/server.py:mcp"]
+CMD ["/app/.venv/bin/mcp", "run", "--transport", "sse", "/app/nextcloud_mcp_server/server.py:mcp"]

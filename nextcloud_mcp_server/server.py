@@ -4,10 +4,8 @@ from nextcloud_mcp_server.config import setup_logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from mcp.server.fastmcp import FastMCP, Context
-from mcp.server import Server
 from collections.abc import AsyncIterator
 from nextcloud_mcp_server.client import NextcloudClient
-import asyncio  # Import asyncio
 
 setup_logging()
 
@@ -28,7 +26,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         yield AppContext(client=client)
     finally:
         # Cleanup on shutdown
-        client._client.close()
+        await client._client.aclose()
 
 
 # Create an MCP server
@@ -38,38 +36,38 @@ logger = logging.getLogger(__name__)
 
 
 @mcp.resource("nc://capabilities")
-def nc_get_capabilities():
+async def nc_get_capabilities():
     """Get the Nextcloud Host capabilities"""
     # client = NextcloudClient.from_env()
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.capabilities()
+    return await client.capabilities()
 
 
 @mcp.resource("notes://settings")
-def notes_get_settings():
+async def notes_get_settings():
     """Get the Notes App settings"""
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_get_settings()
+    return await client.notes_get_settings()
 
 
 @mcp.tool()
-def nc_get_note(note_id: int, ctx: Context):
+async def nc_get_note(note_id: int, ctx: Context):
     """Get user note using note id"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_get_note(note_id=note_id)
+    return await client.notes_get_note(note_id=note_id)
 
 
 @mcp.tool()
-def nc_notes_create_note(title: str, content: str, category: str, ctx: Context):
+async def nc_notes_create_note(title: str, content: str, category: str, ctx: Context):
     """Create a new note"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_create_note(
+    return await client.notes_create_note(
         title=title,
         content=content,
         category=category,
@@ -77,7 +75,7 @@ def nc_notes_create_note(title: str, content: str, category: str, ctx: Context):
 
 
 @mcp.tool()
-def nc_notes_update_note(
+async def nc_notes_update_note(
     note_id: int,
     etag: str,
     title: str | None,
@@ -87,7 +85,7 @@ def nc_notes_update_note(
 ):
     logger.info("Updating note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_update_note(
+    return await client.notes_update_note(
         note_id=note_id,
         etag=etag,
         title=title,
@@ -97,35 +95,35 @@ def nc_notes_update_note(
 
 
 @mcp.tool()
-def nc_notes_append_content(note_id: int, content: str, ctx: Context):
+async def nc_notes_append_content(note_id: int, content: str, ctx: Context):
     """Append content to an existing note with a clear separator"""
     logger.info("Appending content to note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_append_content(note_id=note_id, content=content)
+    return await client.notes_append_content(note_id=note_id, content=content)
 
 
 @mcp.tool()
-def nc_notes_search_notes(query: str, ctx: Context):
+async def nc_notes_search_notes(query: str, ctx: Context):
     """Search notes by title or content, returning only id, title, and category."""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_search_notes(query=query)
+    return await client.notes_search_notes(query=query)
 
 
 @mcp.tool()
-def nc_notes_delete_note(note_id: int, ctx: Context):
+async def nc_notes_delete_note(note_id: int, ctx: Context):
     logger.info("Deleting note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return client.notes_delete_note(note_id=note_id)
+    return await client.notes_delete_note(note_id=note_id)
 
 
 @mcp.resource("nc://Notes/{note_id}/attachments/{attachment_filename}")
-def nc_notes_get_attachment(note_id: int, attachment_filename: str):
+async def nc_notes_get_attachment(note_id: int, attachment_filename: str):
     """Get a specific attachment from a note"""
     ctx = mcp.get_context()
     client: NextcloudClient = ctx.request_context.lifespan_context.client
     # Assuming a method get_note_attachment exists in the client
     # This method should return the raw content and determine the mime type
-    content, mime_type = client.get_note_attachment(
+    content, mime_type = await client.get_note_attachment(
         note_id=note_id, filename=attachment_filename
     )
     return {
