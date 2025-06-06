@@ -173,13 +173,13 @@ async def test_attachments_cleanup_on_note_delete(
             logger.error(
                 f"Attachment directory still exists! PROPFIND returned {status}"
             )
-            assert (
-                False
-            ), f"Expected attachment directory to be gone, but PROPFIND returned {status}!"
+            assert False, (
+                f"Expected attachment directory to be gone, but PROPFIND returned {status}!"
+            )
     except HTTPStatusError as e:
-        assert (
-            e.response.status_code == 404
-        ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+        assert e.response.status_code == 404, (
+            f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+        )
         logger.info(
             "Verified attachment directory does not exist via PROPFIND (404 received)"
         )
@@ -283,13 +283,13 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
                 logger.error(
                     f"Old attachment directory still exists! PROPFIND returned {status}"
                 )
-                assert (
-                    False
-                ), f"Expected old directory to be gone, but PROPFIND returned {status} - directory still exists!"
+                assert False, (
+                    f"Expected old directory to be gone, but PROPFIND returned {status} - directory still exists!"
+                )
         except HTTPStatusError as e:
-            assert (
-                e.response.status_code == 404
-            ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+            assert e.response.status_code == 404, (
+                f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+            )
             logger.info(
                 "Verified old attachment directory does not exist via PROPFIND (404 received)"
             )
@@ -315,9 +315,9 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
             logger.error(
                 f"New attachment directory not found! PROPFIND failed with {e.response.status_code}"
             )
-            assert (
-                False
-            ), f"Expected new attachment directory to exist, but PROPFIND failed with {e.response.status_code}"
+            assert False, (
+                f"Expected new attachment directory to exist, but PROPFIND failed with {e.response.status_code}"
+            )
 
     finally:
         # 6. Cleanup: Delete the note (client should use the *final* category for cleanup path)
@@ -368,9 +368,9 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
                     ]:  # Successful PROPFIND means directory exists
                         assert False, "New category attachment directory still exists!"
                 except HTTPStatusError as e:
-                    assert (
-                        e.response.status_code == 404
-                    ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    assert e.response.status_code == 404, (
+                        f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    )
                     logger.info(
                         "Verified new category attachment directory is gone via PROPFIND"
                     )
@@ -389,9 +389,9 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
                     ]:  # Successful PROPFIND means directory exists
                         assert False, "Old category attachment directory still exists!"
                 except HTTPStatusError as e:
-                    assert (
-                        e.response.status_code == 404
-                    ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    assert e.response.status_code == 404, (
+                        f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    )
                     logger.info(
                         "Verified old category attachment directory is gone via PROPFIND"
                     )

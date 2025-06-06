@@ -108,17 +108,17 @@ async def test_category_change_cleans_up_old_attachments_directory(
             logger.error(
                 "ISSUE DETECTED: Was able to retrieve attachment from old category path!"
             )
-            assert (
-                False
-            ), "Old category attachment directory still exists and accessible!"
+            assert False, (
+                "Old category attachment directory still exists and accessible!"
+            )
         except HTTPStatusError as e:
             # This is the expected outcome - old directory should be gone
             logger.info(
                 f"Correctly got error accessing old category path: {e.response.status_code}"
             )
-            assert (
-                e.response.status_code == 404
-            ), f"Expected 404, got {e.response.status_code}"
+            assert e.response.status_code == 404, (
+                f"Expected 404, got {e.response.status_code}"
+            )
             logger.info(
                 "Verified old category attachment directory is not accessible (good!)"
             )
@@ -144,18 +144,18 @@ async def test_category_change_cleans_up_old_attachments_directory(
                     logger.error(
                         f"Old attachment directory still exists! PROPFIND returned {status}"
                     )
-                    assert (
-                        False
-                    ), f"Expected old attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                    assert False, (
+                        f"Expected old attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                    )
                 # If we got another status code (like 404), it's also good - the directory doesn't exist
                 logger.info(
                     f"Verified old attachment directory does not exist (PROPFIND returned {status})"
                 )
             except HTTPStatusError as e:
                 # 404 is expected - directory should not exist
-                assert (
-                    e.response.status_code == 404
-                ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                assert e.response.status_code == 404, (
+                    f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                )
                 logger.info(
                     "Verified old attachment directory does not exist via PROPFIND (404 received)"
                 )
@@ -210,17 +210,17 @@ async def test_category_change_cleans_up_old_attachments_directory(
                         logger.error(
                             f"New category attachment directory still exists! PROPFIND returned {status}"
                         )
-                        assert (
-                            False
-                        ), f"Expected new category attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                        assert False, (
+                            f"Expected new category attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                        )
                     # If we got another status code (like 404), it's also good - the directory doesn't exist
                     logger.info(
                         f"Verified new category attachment directory does not exist (PROPFIND returned {status})"
                     )
                 except HTTPStatusError as e:
-                    assert (
-                        e.response.status_code == 404
-                    ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    assert e.response.status_code == 404, (
+                        f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    )
                     logger.info(
                         "Verified new category attachment directory is gone via PROPFIND"
                     )
@@ -241,17 +241,17 @@ async def test_category_change_cleans_up_old_attachments_directory(
                         logger.error(
                             f"Old category attachment directory still exists! PROPFIND returned {status}"
                         )
-                        assert (
-                            False
-                        ), f"Expected old category attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                        assert False, (
+                            f"Expected old category attachment directory to be gone, but it still exists (PROPFIND returned {status})!"
+                        )
                     # If we got another status code (like 404), it's also good - the directory doesn't exist
                     logger.info(
                         f"Verified old category attachment directory does not exist (PROPFIND returned {status})"
                     )
                 except HTTPStatusError as e:
-                    assert (
-                        e.response.status_code == 404
-                    ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    assert e.response.status_code == 404, (
+                        f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+                    )
                     logger.info(
                         "Verified old category attachment directory is gone via PROPFIND"
                     )

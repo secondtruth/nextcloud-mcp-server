@@ -99,9 +99,9 @@ async def test_note_with_embedded_image(
         logger.error(
             f"Attachment directory not found! PROPFIND failed with {e.response.status_code}"
         )
-        assert (
-            False
-        ), f"Expected attachment directory to exist, but PROPFIND failed with {e.response.status_code}"
+        assert False, (
+            f"Expected attachment directory to exist, but PROPFIND failed with {e.response.status_code}"
+        )
 
     # 2. Update the note content to include the embedded image references
     updated_content = f"""{note_data["content"]}
@@ -171,13 +171,13 @@ async def test_note_with_embedded_image(
             logger.error(
                 f"Attachment directory still exists! PROPFIND returned {status}"
             )
-            assert (
-                False
-            ), f"Expected attachment directory to be gone, but PROPFIND returned {status}!"
+            assert False, (
+                f"Expected attachment directory to be gone, but PROPFIND returned {status}!"
+            )
     except HTTPStatusError as e:
-        assert (
-            e.response.status_code == 404
-        ), f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+        assert e.response.status_code == 404, (
+            f"Expected PROPFIND to fail with 404, got {e.response.status_code}"
+        )
         logger.info(
             "Verified attachment directory does not exist via PROPFIND (404 received)"
         )
