@@ -1,5 +1,4 @@
 import os
-import datetime as dt
 import mimetypes
 from httpx import (
     AsyncClient,
@@ -181,7 +180,7 @@ class NextcloudClient:
         current_note = await self.notes_get_note(note_id=note_id)
 
         # Use fixed separator for consistency
-        separator = f"\n---\n"
+        separator = "\n---\n"
 
         # Combine content
         existing_content = current_note.get("content", "")
