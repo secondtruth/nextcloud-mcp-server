@@ -3,8 +3,12 @@ import os
 import logging
 import uuid
 from nextcloud_mcp_server.client import NextcloudClient, HTTPStatusError
+import asyncio
+import pytest_asyncio
 
 logger = logging.getLogger(__name__)
+
+# pytestmark = pytest.mark.asyncio(loop_scope="package")
 
 
 @pytest.fixture(scope="session")
@@ -13,6 +17,7 @@ async def nc_client() -> NextcloudClient:
     Fixture to create a NextcloudClient instance for integration tests.
     Uses environment variables for configuration.
     """
+
     assert os.getenv("NEXTCLOUD_HOST"), "NEXTCLOUD_HOST env var not set"
     assert os.getenv("NEXTCLOUD_USERNAME"), "NEXTCLOUD_USERNAME env var not set"
     assert os.getenv("NEXTCLOUD_PASSWORD"), "NEXTCLOUD_PASSWORD env var not set"
@@ -36,6 +41,8 @@ async def temporary_note(nc_client: NextcloudClient):
     Fixture to create a temporary note for a test and ensure its deletion afterward.
     Yields the created note dictionary.
     """
+    asyncio.new_event_loop()
+
     note_id = None
     unique_suffix = uuid.uuid4().hex[:8]
     note_title = f"Temporary Test Note {unique_suffix}"
@@ -80,6 +87,8 @@ async def temporary_note_with_attachment(
     Yields a tuple: (note_data, attachment_filename, attachment_content).
     Depends on the temporary_note fixture.
     """
+    asyncio.new_event_loop()
+
     note_data = temporary_note
     note_id = note_data["id"]
     note_category = note_data.get("category")  # Get category from the note data

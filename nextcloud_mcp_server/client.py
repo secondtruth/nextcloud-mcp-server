@@ -8,7 +8,7 @@ from httpx import (
     Request,
     Response,
     HTTPStatusError,
-)  # Import HTTPStatusError
+)
 import logging
 
 
@@ -172,8 +172,8 @@ class NextcloudClient:
     async def notes_append_content(self, *, note_id: int, content: str):
         """Append content to an existing note.
 
-        The content will be separated by a newline, delimiter `---`, and
-        timestemp so callers do not need to append metadata themselves.
+        The content will be separated by a newline and a delimiter `---`, so
+        one will not be required in the content provided to this tool
         """
         logger.info(f"Appending content to note {note_id}")
 
@@ -181,7 +181,7 @@ class NextcloudClient:
         current_note = await self.notes_get_note(note_id=note_id)
 
         # Use fixed separator for consistency
-        separator = f"\n---\n## Content appended: {dt.datetime.now():%Y-%m-%d %H:%M}\n"
+        separator = f"\n---\n"
 
         # Combine content
         existing_content = current_note.get("content", "")

@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.asyncio
 async def test_notes_api_create_and_read(
     nc_client: NextcloudClient, temporary_note: dict
 ):
@@ -34,7 +33,6 @@ async def test_notes_api_create_and_read(
     logger.info(f"Successfully read and verified note ID: {note_id}")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict):
     """
     Tests updating a note created by the fixture.
@@ -74,7 +72,6 @@ async def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict
     logger.info(f"Successfully updated and verified note ID: {note_id}")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_update_conflict(
     nc_client: NextcloudClient, temporary_note: dict
 ):
@@ -115,7 +112,6 @@ async def test_notes_api_update_conflict(
     logger.info("Update with old etag correctly failed with 412 Precondition Failed.")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_delete_nonexistent(nc_client: NextcloudClient):
     """
     Tests deleting a note that doesn't exist fails with 404.
@@ -130,7 +126,6 @@ async def test_notes_api_delete_nonexistent(nc_client: NextcloudClient):
     )
 
 
-@pytest.mark.asyncio
 async def test_notes_api_append_content_to_existing_note(
     nc_client: NextcloudClient, temporary_note: dict
 ):
@@ -165,7 +160,6 @@ async def test_notes_api_append_content_to_existing_note(
     logger.info(f"Successfully appended content to note ID: {note_id}")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient):
     """
     Tests appending content to an empty note (no separator should be added).
@@ -208,7 +202,6 @@ async def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient
             logger.warning(f"Failed to clean up test note ID: {note_id}: {e}")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_append_content_multiple_times(
     nc_client: NextcloudClient, temporary_note: dict
 ):
@@ -249,7 +242,6 @@ async def test_notes_api_append_content_multiple_times(
     logger.info(f"Successfully performed multiple appends to note ID: {note_id}")
 
 
-@pytest.mark.asyncio
 async def test_notes_api_append_content_nonexistent_note(nc_client: NextcloudClient):
     """
     Tests that appending to a non-existent note fails with 404.
