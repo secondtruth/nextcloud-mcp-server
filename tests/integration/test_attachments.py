@@ -29,7 +29,7 @@ async def test_attachments_add_and_get(
         f"Attempting to retrieve attachment '{attachment_filename}' added by fixture for note ID: {note_id}"
     )
     # Pass category to get_note_attachment
-    retrieved_content, retrieved_mime = await nc_client.get_note_attachment(
+    retrieved_content, retrieved_mime = await nc_client.webdav.get_note_attachment(
         note_id=note_id, filename=attachment_filename, category=note_category
     )
     logger.info(
@@ -67,7 +67,7 @@ async def test_attachments_add_to_note_with_category(
         f"Attempting to add attachment '{attachment_filename}' to note ID: {note_id}"
     )
     # Pass category to add_note_attachment
-    upload_response = await nc_client.add_note_attachment(
+    upload_response = await nc_client.webdav.add_note_attachment(
         note_id=note_id,
         filename=attachment_filename,
         content=attachment_content,
@@ -86,7 +86,7 @@ async def test_attachments_add_to_note_with_category(
         f"Attempting to retrieve attachment '{attachment_filename}' from note ID: {note_id}"
     )
     # Pass category to get_note_attachment
-    retrieved_content, retrieved_mime = await nc_client.get_note_attachment(
+    retrieved_content, retrieved_mime = await nc_client.webdav.get_note_attachment(
         note_id=note_id,
         filename=attachment_filename,
         category=note_category,  # Pass the note's category
@@ -127,13 +127,13 @@ async def test_attachments_cleanup_on_note_delete(
 
     # Manually delete the note
     logger.info(f"Manually deleting note ID: {note_id} within the test.")
-    await nc_client.notes_delete_note(note_id=note_id)
+    await nc_client.notes.delete_note(note_id=note_id)
     logger.info(f"Note ID: {note_id} deleted successfully.")
     time.sleep(1)
 
     # Verify Note Is Deleted
     with pytest.raises(HTTPStatusError) as excinfo_note:
-        await nc_client.notes_get_note(note_id=note_id)
+        await nc_client.notes.get_note(note_id=note_id)
     assert excinfo_note.value.response.status_code == 404
     logger.info(f"Verified note {note_id} deletion (404 received).")
 
@@ -145,7 +145,7 @@ async def test_attachments_cleanup_on_note_delete(
         # Pass category to get_note_attachment - although it should fail anyway
         # because the note (and thus details) are gone.
         # The client method will raise 404 from the initial notes_get_note call.
-        await nc_client.get_note_attachment(
+        await nc_client.webdav.get_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
             category=note_category,  # Pass category, though note fetch should fail first
@@ -205,7 +205,7 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
     try:
         # 1. Create note with initial category
         logger.info(f"Creating note '{note_title}' in category '{initial_category}'")
-        created_note = await nc_client.notes_create_note(
+        created_note = await nc_client.notes.create_note(
             title=note_title, content="Initial content", category=initial_category
         )
         note_id = created_note["id"]
@@ -217,7 +217,7 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
         logger.info(
             f"Adding attachment '{attachment_filename}' to note {note_id} (in {initial_category})"
         )
-        upload_response = await nc_client.add_note_attachment(
+        upload_response = await nc_client.webdav.add_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
             content=attachment_content,
@@ -232,7 +232,7 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
         logger.info(
             f"Verifying attachment retrieval from initial category '{initial_category}'"
         )
-        retrieved_content1, _ = await nc_client.get_note_attachment(
+        retrieved_content1, _ = await nc_client.webdav.get_note_attachment(
             note_id=note_id, filename=attachment_filename, category=initial_category
         )
         assert retrieved_content1 == attachment_content
@@ -243,9 +243,9 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
             f"Updating note {note_id} category from '{initial_category}' to '{new_category}'"
         )
         # Need to fetch the latest etag after attachment add (WebDAV ops don't update note etag)
-        current_note_data = await nc_client.notes_get_note(note_id=note_id)
+        current_note_data = await nc_client.notes.get_note(note_id=note_id)
         current_etag = current_note_data["etag"]
-        updated_note = await nc_client.notes_update_note(
+        updated_note = await nc_client.notes.update(
             note_id=note_id,
             etag=current_etag,
             category=new_category,
@@ -261,7 +261,7 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
         logger.info(
             f"Verifying attachment retrieval from new category '{new_category}'"
         )
-        retrieved_content2, _ = await nc_client.get_note_attachment(
+        retrieved_content2, _ = await nc_client.webdav.get_note_attachment(
             note_id=note_id, filename=attachment_filename, category=new_category
         )
         assert retrieved_content2 == attachment_content
@@ -326,18 +326,18 @@ async def test_attachments_category_change_handling(nc_client: NextcloudClient):
                 f"Cleaning up note ID: {note_id} (last known category: '{new_category}')"
             )
             try:
-                await nc_client.notes_delete_note(note_id=note_id)
+                await nc_client.notes.delete_note(note_id=note_id)
                 logger.info(f"Note {note_id} deleted.")
                 time.sleep(1)
                 # Verify note deletion
                 with pytest.raises(HTTPStatusError) as excinfo_note_del:
-                    await nc_client.notes_get_note(note_id=note_id)
+                    await nc_client.notes.get_note(note_id=note_id)
                 assert excinfo_note_del.value.response.status_code == 404
                 logger.info("Verified note deleted (404).")
                 # Verify attachment deletion (should fail with 404 on the initial note fetch)
                 with pytest.raises(HTTPStatusError) as excinfo_attach_del:
                     # Pass the *last known* category, although the note fetch should fail first
-                    await nc_client.get_note_attachment(
+                    await nc_client.webdav.get_note_attachment(
                         note_id=note_id,
                         filename=attachment_filename,
                         category=new_category,
