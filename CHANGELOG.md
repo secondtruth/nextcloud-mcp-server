@@ -1,3 +1,17 @@
+## v0.4.0 (2025-07-06)
+
+### Feat
+
+- Add TablesClient and associated tools
+
+### Fix
+
+- update tests
+
+### Refactor
+
+- Modularize NC and Notes app client
+
 ## v0.3.0 (2025-06-06)
 
 ### Feat
