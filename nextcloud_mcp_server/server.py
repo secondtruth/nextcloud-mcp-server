@@ -53,21 +53,21 @@ async def notes_get_settings():
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_get_settings()
+    return await client.notes.get_settings()
 
 
 @mcp.tool()
 async def nc_get_note(note_id: int, ctx: Context):
     """Get user note using note id"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_get_note(note_id=note_id)
+    return await client.notes.get_note(note_id)
 
 
 @mcp.tool()
 async def nc_notes_create_note(title: str, content: str, category: str, ctx: Context):
     """Create a new note"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_create_note(
+    return await client.notes.create_note(
         title=title,
         content=content,
         category=category,
@@ -85,7 +85,7 @@ async def nc_notes_update_note(
 ):
     logger.info("Updating note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_update_note(
+    return await client.notes.update(
         note_id=note_id,
         etag=etag,
         title=title,
@@ -99,7 +99,7 @@ async def nc_notes_append_content(note_id: int, content: str, ctx: Context):
     """Append content to an existing note with a clear separator"""
     logger.info("Appending content to note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_append_content(note_id=note_id, content=content)
+    return await client.notes.append_content(note_id=note_id, content=content)
 
 
 @mcp.tool()
@@ -113,7 +113,61 @@ async def nc_notes_search_notes(query: str, ctx: Context):
 async def nc_notes_delete_note(note_id: int, ctx: Context):
     logger.info("Deleting note %s", note_id)
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-    return await client.notes_delete_note(note_id=note_id)
+    return await client.notes.delete_note(note_id)
+
+
+# Tables tools
+@mcp.tool()
+async def nc_tables_list_tables(ctx: Context):
+    """List all tables available to the user"""
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.list_tables()
+
+
+@mcp.tool()
+async def nc_tables_get_schema(table_id: int, ctx: Context):
+    """Get the schema/structure of a specific table including columns and views"""
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.get_table_schema(table_id)
+
+
+@mcp.tool()
+async def nc_tables_read_table(
+    table_id: int,
+    limit: int | None = None,
+    offset: int | None = None,
+    ctx: Context = None,
+):
+    """Read rows from a table with optional pagination"""
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.get_table_rows(table_id, limit, offset)
+
+
+@mcp.tool()
+async def nc_tables_insert_row(table_id: int, data: dict, ctx: Context):
+    """Insert a new row into a table.
+
+    Data should be a dictionary mapping column IDs to values, e.g. {1: "text", 2: 42}
+    """
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.create_row(table_id, data)
+
+
+@mcp.tool()
+async def nc_tables_update_row(row_id: int, data: dict, ctx: Context):
+    """Update an existing row in a table.
+
+    Data should be a dictionary mapping column IDs to new values, e.g. {1: "new text", 2: 99}
+    """
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.update_row(row_id, data)
+
+
+@mcp.tool()
+async def nc_tables_delete_row(row_id: int, ctx: Context):
+    """Delete a row from a table"""
+    client: NextcloudClient = ctx.request_context.lifespan_context.client
+    return await client.tables.delete_row(row_id)
 
 
 @mcp.resource("nc://Notes/{note_id}/attachments/{attachment_filename}")
@@ -123,7 +177,7 @@ async def nc_notes_get_attachment(note_id: int, attachment_filename: str):
     client: NextcloudClient = ctx.request_context.lifespan_context.client
     # Assuming a method get_note_attachment exists in the client
     # This method should return the raw content and determine the mime type
-    content, mime_type = await client.get_note_attachment(
+    content, mime_type = await client.webdav.get_note_attachment(
         note_id=note_id, filename=attachment_filename
     )
     return {
