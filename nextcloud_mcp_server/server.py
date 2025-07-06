@@ -38,7 +38,6 @@ logger = logging.getLogger(__name__)
 @mcp.resource("nc://capabilities")
 async def nc_get_capabilities():
     """Get the Nextcloud Host capabilities"""
-    # client = NextcloudClient.from_env()
     ctx = (
         mcp.get_context()
     )  # https://github.com/modelcontextprotocol/python-sdk/issues/244

@@ -8,24 +8,46 @@ The Nextcloud MCP (Model Context Protocol) server allows Large Language Models (
 
 ## Features
 
-Currently, the server primarily interacts with the Nextcloud Notes API, providing tools and resources to manage notes.
+The server provides integration with multiple Nextcloud apps, enabling LLMs to interact with your Nextcloud data through a rich set of tools and resources.
 
-### Available Tools
+## Supported Nextcloud Apps
 
-*   `nc_notes_create_note`: Create a new note.
-*   `nc_notes_update_note`: Update an existing note by ID.
-*   `nc_notes_append_content`: Append content to an existing note with a clear separator.
-*   `nc_notes_delete_note`: Delete a note by ID.
-*   `nc_notes_search_notes`: Search notes by title or content.
-*   `nc_get_note`: Get a specific note by ID.
+| App | Support Status | Description |
+|-----|----------------|-------------|
+| **Notes** | ✅ Full Support | Create, read, update, delete, and search notes. Handle attachments via WebDAV. |
+| **Tables** | ⚠️ Row Operations | Read table schemas and perform CRUD operations on table rows. Table management not yet supported. |
 
-### Available Resources
+## Available Tools
 
-*   `notes://{note_id}`: Access a specific note by its ID.
-*   `notes://all`: Access all notes.
-*   `notes://settings`: Access note settings.
-*   `nc://capabilities`: Access Nextcloud server capabilities.
-*   `nc://Notes/{note_id}/attachments/{attachment_filename}`: Access attachments for notes.
+### Notes Tools
+
+| Tool | Description |
+|------|-------------|
+| `nc_get_note` | Get a specific note by ID |
+| `nc_notes_create_note` | Create a new note with title, content, and category |
+| `nc_notes_update_note` | Update an existing note by ID |
+| `nc_notes_append_content` | Append content to an existing note with a clear separator |
+| `nc_notes_delete_note` | Delete a note by ID |
+| `nc_notes_search_notes` | Search notes by title or content |
+
+### Tables Tools
+
+| Tool | Description |
+|------|-------------|
+| `nc_tables_list_tables` | List all tables available to the user |
+| `nc_tables_get_schema` | Get the schema/structure of a specific table including columns and views |
+| `nc_tables_read_table` | Read rows from a table with optional pagination |
+| `nc_tables_insert_row` | Insert a new row into a table |
+| `nc_tables_update_row` | Update an existing row in a table |
+| `nc_tables_delete_row` | Delete a row from a table |
+
+## Available Resources
+
+| Resource | Description |
+|----------|-------------|
+| `nc://capabilities` | Access Nextcloud server capabilities |
+| `notes://settings` | Access Notes app settings |
+| `nc://Notes/{note_id}/attachments/{attachment_filename}` | Access attachments for notes |
 
 ### Note Attachments
 

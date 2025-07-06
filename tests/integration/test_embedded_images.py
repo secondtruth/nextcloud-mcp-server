@@ -62,7 +62,7 @@ async def test_note_with_embedded_image(
     logger.info(
         f"Uploading image attachment '{attachment_filename}' to note {note_id} (category: '{note_category or ''}')..."
     )
-    upload_response = await nc_client.add_note_attachment(
+    upload_response = await nc_client.webdav.add_note_attachment(
         note_id=note_id,
         filename=attachment_filename,
         content=image_content,
@@ -115,7 +115,7 @@ async def test_note_with_embedded_image(
 <img src=".attachments.{note_id}/{attachment_filename}" alt="Test Image HTML" width="150" />
 """
     logger.info("Updating note content with image references...")
-    updated_note = await nc_client.notes_update_note(
+    updated_note = await nc_client.notes.update(
         note_id=note_id,
         etag=note_etag,  # Use etag from the created note
         content=updated_content,
@@ -128,7 +128,7 @@ async def test_note_with_embedded_image(
     time.sleep(1)
 
     # 3. Verify the updated note content
-    retrieved_note = await nc_client.notes_get_note(note_id=note_id)
+    retrieved_note = await nc_client.notes.get_note(note_id=note_id)
     assert f".attachments.{note_id}/{attachment_filename}" in retrieved_note["content"]
     logger.info("Verified image reference exists in updated note content.")
 
@@ -137,7 +137,7 @@ async def test_note_with_embedded_image(
         f"Retrieving image attachment '{attachment_filename}' (category: '{note_category or ''}')..."
     )
     # Pass category to get_note_attachment
-    retrieved_img_content, mime_type = await nc_client.get_note_attachment(
+    retrieved_img_content, mime_type = await nc_client.webdav.get_note_attachment(
         note_id=note_id, filename=attachment_filename, category=note_category
     )
     assert retrieved_img_content == image_content
@@ -150,13 +150,13 @@ async def test_note_with_embedded_image(
     logger.info(
         f"Manually deleting note ID: {note_id} to verify proper attachment cleanup"
     )
-    await nc_client.notes_delete_note(note_id=note_id)
+    await nc_client.notes.delete_note(note_id=note_id)
     logger.info(f"Note ID: {note_id} deleted successfully.")
     time.sleep(1)
 
     # 6. Verify note is deleted
     with pytest.raises(HTTPStatusError) as excinfo_note:
-        await nc_client.notes_get_note(note_id=note_id)
+        await nc_client.notes.get_note(note_id=note_id)
     assert excinfo_note.value.response.status_code == 404
     logger.info(f"Verified note {note_id} deletion (404 received).")
 

@@ -24,7 +24,7 @@ async def test_notes_api_create_and_read(
     note_id = created_note_data["id"]
 
     logger.info(f"Reading note created by fixture, ID: {note_id}")
-    read_note = await nc_client.notes_get_note(note_id=note_id)
+    read_note = await nc_client.notes.get_note(note_id=note_id)
 
     assert read_note["id"] == note_id
     assert read_note["title"] == created_note_data["title"]
@@ -46,7 +46,7 @@ async def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict
     update_content = f"Updated Content {uuid.uuid4().hex[:8]}"
 
     logger.info(f"Attempting to update note ID: {note_id} with etag: {original_etag}")
-    updated_note = await nc_client.notes_update_note(
+    updated_note = await nc_client.notes.update(
         note_id=note_id,
         etag=original_etag,
         title=update_title,
@@ -66,7 +66,7 @@ async def test_notes_api_update(nc_client: NextcloudClient, temporary_note: dict
 
     # Optional: Verify update by reading again
     await asyncio.sleep(1)  # Allow potential propagation delay
-    read_updated_note = await nc_client.notes_get_note(note_id=note_id)
+    read_updated_note = await nc_client.notes.get_note(note_id=note_id)
     assert read_updated_note["title"] == update_title
     assert read_updated_note["content"] == update_content
     logger.info(f"Successfully updated and verified note ID: {note_id}")
@@ -85,7 +85,7 @@ async def test_notes_api_update_conflict(
     # Perform a first update to change the etag
     first_update_title = f"First Update {uuid.uuid4().hex[:8]}"
     logger.info(f"Performing first update on note ID: {note_id} to change etag.")
-    first_updated_note = await nc_client.notes_update_note(
+    first_updated_note = await nc_client.notes.update(
         note_id=note_id,
         etag=original_etag,
         title=first_update_title,
@@ -102,7 +102,7 @@ async def test_notes_api_update_conflict(
         f"Attempting second update on note ID: {note_id} with OLD etag: {original_etag}"
     )
     with pytest.raises(HTTPStatusError) as excinfo:
-        await nc_client.notes_update_note(
+        await nc_client.notes.update(
             note_id=note_id,
             etag=original_etag,  # Use the stale etag
             title="This update should fail due to conflict",
@@ -119,7 +119,7 @@ async def test_notes_api_delete_nonexistent(nc_client: NextcloudClient):
     non_existent_id = 999999999  # Use an ID highly unlikely to exist
     logger.info(f"\nAttempting to delete non-existent note ID: {non_existent_id}")
     with pytest.raises(HTTPStatusError) as excinfo:
-        await nc_client.notes_delete_note(note_id=non_existent_id)
+        await nc_client.notes.delete_note(note_id=non_existent_id)
     assert excinfo.value.response.status_code == 404
     logger.info(
         f"Deleting non-existent note ID: {non_existent_id} correctly failed with 404."
@@ -139,7 +139,7 @@ async def test_notes_api_append_content_to_existing_note(
     append_text = f"Appended content {uuid.uuid4().hex[:8]}"
 
     logger.info(f"Appending content to note ID: {note_id}")
-    updated_note = await nc_client.notes_append_content(
+    updated_note = await nc_client.notes.append_content(
         note_id=note_id, content=append_text
     )
     logger.info(f"Note after append: {updated_note}")
@@ -155,7 +155,7 @@ async def test_notes_api_append_content_to_existing_note(
 
     # Verify by reading the note again
     await asyncio.sleep(1)  # Allow potential propagation delay
-    read_note = await nc_client.notes_get_note(note_id=note_id)
+    read_note = await nc_client.notes.get_note(note_id=note_id)
     assert read_note["content"] == expected_content
     logger.info(f"Successfully appended content to note ID: {note_id}")
 
@@ -169,7 +169,7 @@ async def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient
     test_category = "Test"
 
     logger.info("Creating empty note for append test")
-    empty_note = await nc_client.notes_create_note(
+    empty_note = await nc_client.notes.create_note(
         title=test_title,
         content="",
         category=test_category,  # Empty content
@@ -180,7 +180,7 @@ async def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient
         append_text = f"First content {uuid.uuid4().hex[:8]}"
 
         logger.info(f"Appending content to empty note ID: {note_id}")
-        updated_note = await nc_client.notes_append_content(
+        updated_note = await nc_client.notes.append_content(
             note_id=note_id, content=append_text
         )
 
@@ -189,14 +189,14 @@ async def test_notes_api_append_content_to_empty_note(nc_client: NextcloudClient
 
         # Verify by reading the note again
         await asyncio.sleep(1)
-        read_note = await nc_client.notes_get_note(note_id=note_id)
+        read_note = await nc_client.notes.get_note(note_id=note_id)
         assert read_note["content"] == append_text
         logger.info(f"Successfully appended content to empty note ID: {note_id}")
 
     finally:
         # Clean up the test note
         try:
-            await nc_client.notes_delete_note(note_id=note_id)
+            await nc_client.notes.delete_note(note_id=note_id)
             logger.info(f"Cleaned up test note ID: {note_id}")
         except Exception as e:
             logger.warning(f"Failed to clean up test note ID: {note_id}: {e}")
@@ -218,7 +218,7 @@ async def test_notes_api_append_content_multiple_times(
     logger.info(f"Performing multiple appends to note ID: {note_id}")
 
     # First append
-    updated_note = await nc_client.notes_append_content(
+    updated_note = await nc_client.notes.append_content(
         note_id=note_id, content=first_append
     )
 
@@ -226,7 +226,7 @@ async def test_notes_api_append_content_multiple_times(
     assert updated_note["content"] == expected_content_after_first
 
     # Second append
-    updated_note = await nc_client.notes_append_content(
+    updated_note = await nc_client.notes.append_content(
         note_id=note_id, content=second_append
     )
 
@@ -237,7 +237,7 @@ async def test_notes_api_append_content_multiple_times(
 
     # Verify by reading the note again
     await asyncio.sleep(1)
-    read_note = await nc_client.notes_get_note(note_id=note_id)
+    read_note = await nc_client.notes.get_note(note_id=note_id)
     assert read_note["content"] == expected_content_after_second
     logger.info(f"Successfully performed multiple appends to note ID: {note_id}")
 
@@ -250,13 +250,10 @@ async def test_notes_api_append_content_nonexistent_note(nc_client: NextcloudCli
 
     logger.info(f"Attempting to append to non-existent note ID: {non_existent_id}")
     with pytest.raises(HTTPStatusError) as excinfo:
-        await nc_client.notes_append_content(
+        await nc_client.notes.append_content(
             note_id=non_existent_id, content="This should fail"
         )
     assert excinfo.value.response.status_code == 404
     logger.info(
         f"Appending to non-existent note ID: {non_existent_id} correctly failed with 404."
     )
-
-
-# --- Attachment tests moved to test_attachments.py ---

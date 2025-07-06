@@ -52,7 +52,7 @@ async def temporary_note(nc_client: NextcloudClient):
 
     logger.info(f"Creating temporary note: {note_title}")
     try:
-        created_note_data = await nc_client.notes_create_note(
+        created_note_data = await nc_client.notes.create_note(
             title=note_title, content=note_content, category=note_category
         )
         note_id = created_note_data.get("id")
@@ -66,7 +66,7 @@ async def temporary_note(nc_client: NextcloudClient):
         if note_id:
             logger.info(f"Cleaning up temporary note ID: {note_id}")
             try:
-                await nc_client.notes_delete_note(note_id=note_id)
+                await nc_client.notes.delete_note(note_id=note_id)
                 logger.info(f"Successfully deleted temporary note ID: {note_id}")
             except HTTPStatusError as e:
                 # Ignore 404 if note was already deleted by the test itself
@@ -102,7 +102,7 @@ async def temporary_note_with_attachment(
     )
     try:
         # Pass the category to add_note_attachment
-        upload_response = await nc_client.add_note_attachment(
+        upload_response = await nc_client.webdav.add_note_attachment(
             note_id=note_id,
             filename=attachment_filename,
             content=attachment_content,
