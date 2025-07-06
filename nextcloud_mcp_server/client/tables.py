@@ -3,7 +3,7 @@
 from typing import Dict, List, Any, Optional
 import logging
 
-from .base_client import BaseNextcloudClient
+from .base import BaseNextcloudClient
 
 logger = logging.getLogger(__name__)
 

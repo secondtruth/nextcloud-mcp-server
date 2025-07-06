@@ -3,7 +3,7 @@
 from typing import Dict, List, Any, Optional
 import logging
 
-from .base_client import BaseNextcloudClient
+from .base import BaseNextcloudClient
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class NotesClient(BaseNextcloudClient):
             )
             try:
                 # Import here to avoid circular imports
-                from .webdav_client import WebDAVClient
+                from .webdav import WebDAVClient
 
                 webdav_client = WebDAVClient(self._client, self.username)
                 await webdav_client.cleanup_old_attachment_directory(
@@ -152,7 +152,7 @@ class NotesClient(BaseNextcloudClient):
 
         # Clean up attachment directories
         try:
-            from .webdav_client import WebDAVClient
+            from .webdav import WebDAVClient
 
             webdav_client = WebDAVClient(self._client, self.username)
 

@@ -8,10 +8,10 @@ from httpx import (
 )
 import logging
 
-from .notes_client import NotesClient
-from .webdav_client import WebDAVClient
-from .tables_client import TablesClient
-from .controllers.notes_search import NotesSearchController
+from .notes import NotesClient
+from .webdav import WebDAVClient
+from .tables import TablesClient
+from ..controllers.notes_search import NotesSearchController
 
 logger = logging.getLogger(__name__)
 

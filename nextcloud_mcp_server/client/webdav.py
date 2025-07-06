@@ -5,7 +5,7 @@ from typing import Tuple, Dict, Any, Optional
 import logging
 from httpx import HTTPStatusError
 
-from .base_client import BaseNextcloudClient
+from .base import BaseNextcloudClient
 
 logger = logging.getLogger(__name__)
 
