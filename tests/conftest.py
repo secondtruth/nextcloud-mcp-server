@@ -2,7 +2,8 @@ import pytest
 import os
 import logging
 import uuid
-from nextcloud_mcp_server.client import NextcloudClient, HTTPStatusError
+from nextcloud_mcp_server.client import NextcloudClient
+from httpx import HTTPStatusError
 import asyncio
 
 logger = logging.getLogger(__name__)

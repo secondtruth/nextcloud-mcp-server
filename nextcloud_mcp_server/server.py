@@ -26,7 +26,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
         yield AppContext(client=client)
     finally:
         # Cleanup on shutdown
-        await client._client.aclose()
+        await client.close()
 
 
 # Create an MCP server
