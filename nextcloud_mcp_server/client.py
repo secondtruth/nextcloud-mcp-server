@@ -32,7 +32,7 @@ def log_response(response: Response):
 
 class NextcloudClient:
     """Main Nextcloud client that orchestrates all app clients."""
-    
+
     def __init__(self, base_url: str, username: str, auth: Auth | None = None):
         self.username = username
         self._client = AsyncClient(
@@ -40,11 +40,11 @@ class NextcloudClient:
             auth=auth,
             # event_hooks={"request": [log_request], "response": [log_response]},
         )
-        
+
         # Initialize app clients
         self.notes = NotesClient(self._client, username)
         self.webdav = WebDAVClient(self._client, username)
-        
+
         # Initialize controllers
         self._notes_search = NotesSearchController()
 
@@ -88,7 +88,9 @@ class NextcloudClient:
         category: str | None = None,
     ):
         """Create a new note."""
-        return await self.notes.create_note(title=title, content=content, category=category)
+        return await self.notes.create_note(
+            title=title, content=content, category=category
+        )
 
     async def notes_update_note(
         self,
@@ -112,7 +114,6 @@ class NextcloudClient:
         """Search notes using token-based matching with relevance ranking."""
         all_notes = await self.notes.get_all_notes()
         return self._notes_search.search_notes(all_notes, query)
-
 
     async def notes_delete_note(self, *, note_id: int):
         """Delete a note and its attachments."""
