@@ -139,6 +139,6 @@ Contributions are welcome! Please feel free to submit issues or pull requests on
 
 ## License
 
-This project is licensed under the AGPL-3.0 License. See the [LICENSE](./LICENSE.md] file for details.
+This project is licensed under the AGPL-3.0 License. See the [LICENSE](./LICENSE.md) file for details.
 
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/cbcoutinho-nextcloud-mcp-server-badge.png)](https://mseep.ai/app/cbcoutinho-nextcloud-mcp-server)
