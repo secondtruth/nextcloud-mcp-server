@@ -1,3 +1,26 @@
+## [Unreleased]
+
+### Feat
+
+- **webdav**: Add complete file system support with directory browsing, file read/write, and resource management
+- **webdav**: Add `nc_webdav_list_directory` tool for browsing any NextCloud directory
+- **webdav**: Add `nc_webdav_read_file` tool with automatic text/binary content handling
+- **webdav**: Add `nc_webdav_write_file` tool supporting text and base64 binary content
+- **webdav**: Add `nc_webdav_create_directory` tool for creating directories
+- **webdav**: Add `nc_webdav_delete_resource` tool for deleting files and directories
+- **webdav**: Add XML parsing for WebDAV PROPFIND responses with metadata extraction
+
+### Fix
+
+- **types**: Improve type annotations throughout codebase for better IDE support
+- **types**: Fix Context parameter ordering in MCP tools (required before optional)
+- **types**: Add proper type hints for WebDAV client methods
+
+### Refactor
+
+- **webdav**: Extend WebDAV client beyond Notes attachments to general file operations
+- **server**: Enhance error handling and logging for WebDAV operations
+
 ## v0.4.1 (2025-07-10)
 
 ### Fix

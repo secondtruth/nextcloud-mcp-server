@@ -14,6 +14,7 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 |-----|----------------|-------------|
 | **Notes** | ✅ Full Support | Create, read, update, delete, and search notes. Handle attachments via WebDAV. |
 | **Tables** | ⚠️ Row Operations | Read table schemas and perform CRUD operations on table rows. Table management not yet supported. |
+| **Files (WebDAV)** | ✅ Full Support | Complete file system access - browse directories, read/write files, create/delete resources. |
 
 ## Available Tools
 
@@ -39,6 +40,16 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | `nc_tables_update_row` | Update an existing row in a table |
 | `nc_tables_delete_row` | Delete a row from a table |
 
+### WebDAV File System Tools
+
+| Tool | Description |
+|------|-------------|
+| `nc_webdav_list_directory` | List files and directories in any NextCloud path |
+| `nc_webdav_read_file` | Read file content (text files decoded, binary as base64) |
+| `nc_webdav_write_file` | Create or update files in NextCloud |
+| `nc_webdav_create_directory` | Create new directories |
+| `nc_webdav_delete_resource` | Delete files or directories |
+
 ## Available Resources
 
 | Resource | Description |
@@ -46,6 +57,37 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | `nc://capabilities` | Access Nextcloud server capabilities |
 | `notes://settings` | Access Notes app settings |
 | `nc://Notes/{note_id}/attachments/{attachment_filename}` | Access attachments for notes |
+
+### WebDAV File System Access
+
+The server provides complete file system access to your NextCloud instance, enabling you to:
+
+- Browse any directory structure
+- Read and write files of any type
+- Create and delete directories
+- Manage your NextCloud files directly through LLM interactions
+
+**Usage Examples:**
+
+```python
+# List files in root directory
+await nc_webdav_list_directory("")
+
+# Browse a specific folder
+await nc_webdav_list_directory("Documents/Projects")
+
+# Read a text file
+content = await nc_webdav_read_file("Documents/readme.txt")
+
+# Create a new directory
+await nc_webdav_create_directory("NewProject/docs")
+
+# Write content to a file
+await nc_webdav_write_file("NewProject/docs/notes.md", "# My Notes\n\nContent here...")
+
+# Delete a file or directory
+await nc_webdav_delete_resource("old_file.txt")
+```
 
 ### Note Attachments
 
