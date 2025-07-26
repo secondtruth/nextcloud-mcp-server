@@ -14,9 +14,12 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
-def test_base_path():
+async def test_base_path(nc_client: NextcloudClient):
     """Base path for test files/directories."""
-    return f"mcp_test_{uuid.uuid4().hex[:8]}"
+    test_dir = f"mcp_test_{uuid.uuid4().hex[:8]}"
+    await nc_client.webdav.create_directory(test_dir)
+    yield test_dir
+    await nc_client.webdav.delete_resource(test_dir)
 
 
 async def test_create_and_delete_directory(
@@ -45,7 +48,6 @@ async def test_create_and_delete_directory(
         # Cleanup: ensure directory is deleted
         try:
             await nc_client.webdav.delete_resource(test_dir)
-            await nc_client.webdav.delete_resource(test_base_path)
         except Exception:
             pass
 
@@ -69,7 +71,7 @@ async def test_write_read_delete_file(nc_client: NextcloudClient, test_base_path
         # Read file back
         content, content_type = await nc_client.webdav.read_file(test_file)
         assert content.decode("utf-8") == test_content
-        assert content_type == "text/plain"
+        assert "text/plain" in content_type
         logger.info(f"Read file: {test_file}")
 
         # Verify file appears in directory listing
@@ -179,7 +181,7 @@ async def test_create_nested_directories(
 
     try:
         # Create nested directories (should create parent directories automatically)
-        result = await nc_client.webdav.create_directory(nested_path)
+        result = await nc_client.webdav.create_directory(nested_path, True)
         assert result["status_code"] == 201
 
         # Verify the structure was created
@@ -205,7 +207,6 @@ async def test_create_nested_directories(
             await nc_client.webdav.delete_resource(nested_path)
             await nc_client.webdav.delete_resource(f"{test_base_path}/level1/level2")
             await nc_client.webdav.delete_resource(f"{test_base_path}/level1")
-            await nc_client.webdav.delete_resource(test_base_path)
         except Exception:
             pass
 

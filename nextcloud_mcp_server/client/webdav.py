@@ -23,7 +23,7 @@ class WebDAVClient(BaseNextcloudClient):
             path_with_slash = path
 
         webdav_path = f"{self._get_webdav_base_path()}/{path_with_slash.lstrip('/')}"
-        logger.info(f"Deleting WebDAV resource: {webdav_path}")
+        logger.debug(f"Deleting WebDAV resource: {webdav_path}")
 
         headers = {"OCS-APIRequest": "true"}
         try:
@@ -33,36 +33,30 @@ class WebDAVClient(BaseNextcloudClient):
                 propfind_resp = await self._client.request(
                     "PROPFIND", webdav_path, headers=propfind_headers
                 )
-                logger.info(
-                    f"Resource exists check (PROPFIND) status: {propfind_resp.status_code}"
+                logger.debug(
+                    f"Resource exists check status: {propfind_resp.status_code}"
                 )
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    logger.info(
-                        f"Resource '{webdav_path}' doesn't exist, no deletion needed."
-                    )
+                    logger.debug(f"Resource '{path}' doesn't exist, no deletion needed")
                     return {"status_code": 404}
                 # For other errors, continue with deletion attempt
 
             # Proceed with deletion
             response = await self._client.delete(webdav_path, headers=headers)
             response.raise_for_status()
-            logger.info(
-                f"Successfully deleted WebDAV resource '{webdav_path}' (Status: {response.status_code})"
-            )
+            logger.debug(f"Successfully deleted WebDAV resource '{path}'")
             return {"status_code": response.status_code}
 
         except HTTPStatusError as e:
-            logger.warning(f"HTTP error deleting WebDAV resource '{webdav_path}': {e}")
-            if e.response.status_code != 404:
-                raise e
-            else:
-                logger.info(f"Resource '{webdav_path}' not found, no deletion needed.")
+            if e.response.status_code == 404:
+                logger.debug(f"Resource '{path}' not found, no deletion needed")
                 return {"status_code": 404}
+            else:
+                logger.error(f"HTTP error deleting WebDAV resource '{path}': {e}")
+                raise e
         except Exception as e:
-            logger.warning(
-                f"Unexpected error deleting WebDAV resource '{webdav_path}': {e}"
-            )
+            logger.error(f"Unexpected error deleting WebDAV resource '{path}': {e}")
             raise e
 
     async def cleanup_old_attachment_directory(
@@ -74,10 +68,10 @@ class WebDAVClient(BaseNextcloudClient):
             f"Notes/{old_category_path_part}.attachments.{note_id}/"
         )
 
-        logger.info(f"Cleaning up old attachment directory: {old_attachment_dir_path}")
+        logger.debug(f"Cleaning up old attachment directory: {old_attachment_dir_path}")
         try:
             delete_result = await self.delete_resource(path=old_attachment_dir_path)
-            logger.info(f"Cleanup of old attachment directory result: {delete_result}")
+            logger.debug(f"Cleanup result: {delete_result}")
             return delete_result
         except Exception as e:
             logger.error(f"Error during cleanup of old attachment directory: {e}")
@@ -90,19 +84,15 @@ class WebDAVClient(BaseNextcloudClient):
         cat_path_part = f"{category}/" if category else ""
         attachment_dir_path = f"Notes/{cat_path_part}.attachments.{note_id}/"
 
-        logger.info(
-            f"Attempting to delete attachment directory for note {note_id} in category '{category}' via WebDAV: {attachment_dir_path}"
+        logger.debug(
+            f"Cleaning up attachments for note {note_id} in category '{category}'"
         )
         try:
             delete_result = await self.delete_resource(path=attachment_dir_path)
-            logger.info(
-                f"WebDAV deletion for category '{category}' attachment directory: {delete_result}"
-            )
+            logger.debug(f"Cleanup result for note {note_id}: {delete_result}")
             return delete_result
         except Exception as e:
-            logger.warning(
-                f"Failed during WebDAV deletion for category '{category}' attachment directory: {e}"
-            )
+            logger.error(f"Failed cleaning up attachments for note {note_id}: {e}")
             raise e
 
     async def add_note_attachment(
@@ -124,14 +114,7 @@ class WebDAVClient(BaseNextcloudClient):
         parent_dir_path = f"{webdav_base}/{parent_dir_webdav_rel_path}"
         attachment_path = f"{parent_dir_path}/{filename}"
 
-        logger.info(
-            f"Uploading attachment for note {note_id} (category: '{category or ''}') to WebDAV path: {attachment_path}"
-        )
-
-        # Log current auth settings
-        logger.info(
-            f"WebDAV auth settings - Username: {self.username}, Auth Type: {type(self._client.auth).__name__}"
-        )
+        logger.debug(f"Uploading attachment '{filename}' for note {note_id}")
 
         if not mime_type:
             mime_type, _ = mimetypes.guess_type(filename)
@@ -142,17 +125,13 @@ class WebDAVClient(BaseNextcloudClient):
         try:
             # First check if we can access WebDAV at all
             notes_dir_path = f"{webdav_base}/Notes"
-            logger.info(f"Testing WebDAV access to Notes directory: {notes_dir_path}")
-
             propfind_headers = {"Depth": "0", "OCS-APIRequest": "true"}
             notes_dir_response = await self._client.request(
                 "PROPFIND", notes_dir_path, headers=propfind_headers
             )
 
             if notes_dir_response.status_code == 401:
-                logger.error(
-                    "WebDAV authentication failed for Notes directory. Please verify WebDAV permissions."
-                )
+                logger.error("WebDAV authentication failed for Notes directory")
                 raise HTTPStatusError(
                     f"Authentication error accessing WebDAV Notes directory: {notes_dir_response.status_code}",
                     request=notes_dir_response.request,
@@ -163,13 +142,8 @@ class WebDAVClient(BaseNextcloudClient):
                     f"Error accessing WebDAV Notes directory: {notes_dir_response.status_code}"
                 )
                 notes_dir_response.raise_for_status()
-            else:
-                logger.info(
-                    f"Successfully accessed WebDAV Notes directory (Status: {notes_dir_response.status_code})"
-                )
 
             # Ensure the parent directory exists using MKCOL
-            logger.info(f"Ensuring attachments directory exists: {parent_dir_path}")
             mkcol_headers = {"OCS-APIRequest": "true"}
             mkcol_response = await self._client.request(
                 "MKCOL", parent_dir_path, headers=mkcol_headers
@@ -177,23 +151,18 @@ class WebDAVClient(BaseNextcloudClient):
 
             # MKCOL should return 201 Created or 405 Method Not Allowed (if directory already exists)
             if mkcol_response.status_code not in [201, 405]:
-                logger.warning(
+                logger.error(
                     f"Unexpected status code {mkcol_response.status_code} when creating attachments directory"
                 )
                 mkcol_response.raise_for_status()
-            else:
-                logger.info(
-                    f"Created/verified directory: {parent_dir_path} (Status: {mkcol_response.status_code})"
-                )
 
             # Proceed with the PUT request
-            logger.info(f"Putting attachment file to: {attachment_path}")
             response = await self._client.put(
                 attachment_path, content=content, headers=headers
             )
             response.raise_for_status()
-            logger.info(
-                f"Successfully uploaded attachment '{filename}' to note {note_id} (Status: {response.status_code})"
+            logger.debug(
+                f"Successfully uploaded attachment '{filename}' to note {note_id}"
             )
             return {"status_code": response.status_code}
 
@@ -217,9 +186,7 @@ class WebDAVClient(BaseNextcloudClient):
         attachment_dir_segment = f".attachments.{note_id}"
         attachment_path = f"{webdav_base}/Notes/{category_path_part}{attachment_dir_segment}/{filename}"
 
-        logger.info(
-            f"Fetching attachment for note {note_id} (category: '{category or ''}') from WebDAV path: {attachment_path}"
-        )
+        logger.debug(f"Fetching attachment '{filename}' for note {note_id}")
 
         try:
             response = await self._client.get(attachment_path)
@@ -228,15 +195,18 @@ class WebDAVClient(BaseNextcloudClient):
             content = response.content
             mime_type = response.headers.get("content-type", "application/octet-stream")
 
-            logger.info(
-                f"Successfully fetched attachment '{filename}' ({mime_type}, {len(content)} bytes)"
+            logger.debug(
+                f"Successfully fetched attachment '{filename}' ({len(content)} bytes)"
             )
             return content, mime_type
 
         except HTTPStatusError as e:
-            logger.error(
-                f"HTTP error fetching attachment '{filename}' for note {note_id}: {e}"
-            )
+            if e.response.status_code == 404:
+                logger.debug(f"Attachment '{filename}' not found for note {note_id}")
+            else:
+                logger.error(
+                    f"HTTP error fetching attachment '{filename}' for note {note_id}: {e}"
+                )
             raise e
         except Exception as e:
             logger.error(
@@ -250,7 +220,7 @@ class WebDAVClient(BaseNextcloudClient):
         if not webdav_path.endswith("/"):
             webdav_path += "/"
 
-        logger.info(f"Listing directory: {webdav_path}")
+        logger.debug(f"Listing directory: {path}")
 
         propfind_body = """<?xml version="1.0"?>
         <d:propfind xmlns:d="DAV:">
@@ -332,7 +302,7 @@ class WebDAVClient(BaseNextcloudClient):
                     }
                 )
 
-            logger.info(f"Found {len(items)} items in directory: {webdav_path}")
+            logger.debug(f"Found {len(items)} items in directory: {path}")
             return items
 
         except HTTPStatusError as e:
@@ -346,7 +316,7 @@ class WebDAVClient(BaseNextcloudClient):
         """Read a file's content via WebDAV GET."""
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
 
-        logger.info(f"Reading file: {webdav_path}")
+        logger.debug(f"Reading file: {path}")
 
         try:
             response = await self._client.get(webdav_path)
@@ -357,9 +327,7 @@ class WebDAVClient(BaseNextcloudClient):
                 "content-type", "application/octet-stream"
             )
 
-            logger.info(
-                f"Successfully read file '{path}' ({content_type}, {len(content)} bytes)"
-            )
+            logger.debug(f"Successfully read file '{path}' ({len(content)} bytes)")
             return content, content_type
 
         except HTTPStatusError as e:
@@ -375,7 +343,7 @@ class WebDAVClient(BaseNextcloudClient):
         """Write content to a file via WebDAV PUT."""
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
 
-        logger.info(f"Writing file: {webdav_path}")
+        logger.debug(f"Writing file: {path}")
 
         if not content_type:
             content_type, _ = mimetypes.guess_type(path)
@@ -390,9 +358,7 @@ class WebDAVClient(BaseNextcloudClient):
             )
             response.raise_for_status()
 
-            logger.info(
-                f"Successfully wrote file '{path}' (Status: {response.status_code})"
-            )
+            logger.debug(f"Successfully wrote file '{path}'")
             return {"status_code": response.status_code}
 
         except HTTPStatusError as e:
@@ -402,13 +368,15 @@ class WebDAVClient(BaseNextcloudClient):
             logger.error(f"Unexpected error writing file '{path}': {e}")
             raise e
 
-    async def create_directory(self, path: str) -> Dict[str, Any]:
+    async def create_directory(
+        self, path: str, recursive: bool = False
+    ) -> Dict[str, Any]:
         """Create a directory via WebDAV MKCOL."""
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
         if not webdav_path.endswith("/"):
             webdav_path += "/"
 
-        logger.info(f"Creating directory: {webdav_path}")
+        logger.debug(f"Creating directory: {path}")
 
         headers = {"OCS-APIRequest": "true"}
 
@@ -416,17 +384,32 @@ class WebDAVClient(BaseNextcloudClient):
             response = await self._client.request("MKCOL", webdav_path, headers=headers)
             response.raise_for_status()
 
-            logger.info(
-                f"Successfully created directory '{path}' (Status: {response.status_code})"
-            )
+            logger.debug(f"Successfully created directory '{path}'")
             return {"status_code": response.status_code}
 
         except HTTPStatusError as e:
-            if (
-                e.response.status_code == 405
-            ):  # Method Not Allowed - directory already exists
-                logger.info(f"Directory '{path}' already exists")
+            # Method Not Allowed - directory already exists
+            if e.response.status_code == 405:
+                logger.debug(f"Directory '{path}' already exists")
                 return {"status_code": 405, "message": "Directory already exists"}
+
+            # File Conflict - parent directory does not exist
+            if e.response.status_code == 409 and recursive:
+                # Extract parent directory path
+                path_parts = path.strip("/").split("/")
+                if len(path_parts) > 1:
+                    parent_dir = "/".join(path_parts[:-1])
+                    logger.debug(
+                        f"Parent directory '{parent_dir}' doesn't exist, creating recursively"
+                    )
+                    await self.create_directory(parent_dir, recursive)
+                    # Now try to create the original directory again
+                    return await self.create_directory(path, recursive)
+                else:
+                    # This shouldn't happen for single-level directories under root
+                    logger.error(f"409 conflict for single-level directory '{path}'")
+                    raise e
+
             logger.error(f"HTTP error creating directory '{path}': {e}")
             raise e
         except Exception as e:
