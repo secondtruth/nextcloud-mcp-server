@@ -249,10 +249,10 @@ class WebDAVClient(BaseNextcloudClient):
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
         if not webdav_path.endswith("/"):
             webdav_path += "/"
-        
+
         logger.info(f"Listing directory: {webdav_path}")
-        
-        propfind_body = '''<?xml version="1.0"?>
+
+        propfind_body = """<?xml version="1.0"?>
         <d:propfind xmlns:d="DAV:">
             <d:prop>
                 <d:displayname/>
@@ -261,73 +261,80 @@ class WebDAVClient(BaseNextcloudClient):
                 <d:getlastmodified/>
                 <d:resourcetype/>
             </d:prop>
-        </d:propfind>'''
-        
-        headers = {
-            "Depth": "1",
-            "Content-Type": "text/xml",
-            "OCS-APIRequest": "true"
-        }
-        
+        </d:propfind>"""
+
+        headers = {"Depth": "1", "Content-Type": "text/xml", "OCS-APIRequest": "true"}
+
         try:
             response = await self._client.request(
                 "PROPFIND", webdav_path, content=propfind_body, headers=headers
             )
             response.raise_for_status()
-            
+
             # Parse the XML response
             root = ET.fromstring(response.content)
             items = []
-            
+
             # Skip the first response (the directory itself)
             responses = root.findall(".//{DAV:}response")[1:]
-            
+
             for response_elem in responses:
                 href = response_elem.find(".//{DAV:}href")
                 if href is None:
                     continue
-                    
+
                 # Extract file/directory name from href
                 href_text = href.text or ""
                 name = href_text.rstrip("/").split("/")[-1]
                 if not name:
                     continue
-                
+
                 # Get properties
                 propstat = response_elem.find(".//{DAV:}propstat")
                 if propstat is None:
                     continue
-                    
+
                 prop = propstat.find(".//{DAV:}prop")
                 if prop is None:
                     continue
-                
+
                 # Determine if it's a directory
                 resourcetype = prop.find(".//{DAV:}resourcetype")
-                is_directory = resourcetype is not None and resourcetype.find(".//{DAV:}collection") is not None
-                
+                is_directory = (
+                    resourcetype is not None
+                    and resourcetype.find(".//{DAV:}collection") is not None
+                )
+
                 # Get other properties
                 size_elem = prop.find(".//{DAV:}getcontentlength")
-                size = int(size_elem.text) if size_elem is not None and size_elem.text else 0
-                
+                size = (
+                    int(size_elem.text)
+                    if size_elem is not None and size_elem.text
+                    else 0
+                )
+
                 content_type_elem = prop.find(".//{DAV:}getcontenttype")
-                content_type = content_type_elem.text if content_type_elem is not None else None
-                
+                content_type = (
+                    content_type_elem.text if content_type_elem is not None else None
+                )
+
                 modified_elem = prop.find(".//{DAV:}getlastmodified")
                 modified = modified_elem.text if modified_elem is not None else None
-                
-                items.append({
-                    "name": name,
-                    "path": f"{path.rstrip('/')}/{name}" if path else name,
-                    "is_directory": is_directory,
-                    "size": size if not is_directory else None,
-                    "content_type": content_type,
-                    "last_modified": modified
-                })
-            
+
+                items.append(
+                    {
+                        "name": name,
+                        "path": f"{path.rstrip('/')}/{name}" if path else name,
+                        "is_directory": is_directory,
+                        "size": size if not is_directory else None,
+                        "content_type": content_type,
+                        "last_modified": modified,
+                    }
+                )
+
             logger.info(f"Found {len(items)} items in directory: {webdav_path}")
             return items
-            
+
         except HTTPStatusError as e:
             logger.error(f"HTTP error listing directory '{webdav_path}': {e}")
             raise e
@@ -338,19 +345,23 @@ class WebDAVClient(BaseNextcloudClient):
     async def read_file(self, path: str) -> Tuple[bytes, str]:
         """Read a file's content via WebDAV GET."""
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
-        
+
         logger.info(f"Reading file: {webdav_path}")
-        
+
         try:
             response = await self._client.get(webdav_path)
             response.raise_for_status()
-            
+
             content = response.content
-            content_type = response.headers.get("content-type", "application/octet-stream")
-            
-            logger.info(f"Successfully read file '{path}' ({content_type}, {len(content)} bytes)")
+            content_type = response.headers.get(
+                "content-type", "application/octet-stream"
+            )
+
+            logger.info(
+                f"Successfully read file '{path}' ({content_type}, {len(content)} bytes)"
+            )
             return content, content_type
-            
+
         except HTTPStatusError as e:
             logger.error(f"HTTP error reading file '{path}': {e}")
             raise e
@@ -358,29 +369,32 @@ class WebDAVClient(BaseNextcloudClient):
             logger.error(f"Unexpected error reading file '{path}': {e}")
             raise e
 
-    async def write_file(self, path: str, content: bytes, content_type: Optional[str] = None) -> Dict[str, Any]:
+    async def write_file(
+        self, path: str, content: bytes, content_type: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Write content to a file via WebDAV PUT."""
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
-        
+
         logger.info(f"Writing file: {webdav_path}")
-        
+
         if not content_type:
             content_type, _ = mimetypes.guess_type(path)
             if not content_type:
                 content_type = "application/octet-stream"
-        
-        headers = {
-            "Content-Type": content_type,
-            "OCS-APIRequest": "true"
-        }
-        
+
+        headers = {"Content-Type": content_type, "OCS-APIRequest": "true"}
+
         try:
-            response = await self._client.put(webdav_path, content=content, headers=headers)
+            response = await self._client.put(
+                webdav_path, content=content, headers=headers
+            )
             response.raise_for_status()
-            
-            logger.info(f"Successfully wrote file '{path}' (Status: {response.status_code})")
+
+            logger.info(
+                f"Successfully wrote file '{path}' (Status: {response.status_code})"
+            )
             return {"status_code": response.status_code}
-            
+
         except HTTPStatusError as e:
             logger.error(f"HTTP error writing file '{path}': {e}")
             raise e
@@ -393,20 +407,24 @@ class WebDAVClient(BaseNextcloudClient):
         webdav_path = f"{self._get_webdav_base_path()}/{path.lstrip('/')}"
         if not webdav_path.endswith("/"):
             webdav_path += "/"
-        
+
         logger.info(f"Creating directory: {webdav_path}")
-        
+
         headers = {"OCS-APIRequest": "true"}
-        
+
         try:
             response = await self._client.request("MKCOL", webdav_path, headers=headers)
             response.raise_for_status()
-            
-            logger.info(f"Successfully created directory '{path}' (Status: {response.status_code})")
+
+            logger.info(
+                f"Successfully created directory '{path}' (Status: {response.status_code})"
+            )
             return {"status_code": response.status_code}
-            
+
         except HTTPStatusError as e:
-            if e.response.status_code == 405:  # Method Not Allowed - directory already exists
+            if (
+                e.response.status_code == 405
+            ):  # Method Not Allowed - directory already exists
                 logger.info(f"Directory '{path}' already exists")
                 return {"status_code": 405, "message": "Directory already exists"}
             logger.error(f"HTTP error creating directory '{path}': {e}")
