@@ -120,7 +120,7 @@ class CalendarClient(BaseNextcloudClient):
                     }
                 )
 
-            logger.info(f"Found {len(calendars)} calendars for user {self.username}")
+            logger.debug(f"Found {len(calendars)} calendars")
             return calendars
 
         except HTTPStatusError as e:
@@ -210,7 +210,7 @@ class CalendarClient(BaseNextcloudClient):
                 if len(events) >= limit:
                     break
 
-            logger.info(f"Found {len(events)} events in calendar {calendar_name}")
+            logger.debug(f"Found {len(events)} events")
             return events
 
         except HTTPStatusError as e:
@@ -242,9 +242,7 @@ class CalendarClient(BaseNextcloudClient):
             )
             response.raise_for_status()
 
-            logger.info(
-                f"Successfully created event {event_uid} in calendar {calendar_name}"
-            )
+            logger.debug(f"Created event {event_uid}")
             return {
                 "uid": event_uid,
                 "href": event_path,
@@ -300,9 +298,7 @@ class CalendarClient(BaseNextcloudClient):
             )
             response.raise_for_status()
 
-            logger.info(
-                f"Successfully updated event {event_uid} in calendar {calendar_name}"
-            )
+            logger.debug(f"Updated event {event_uid}")
             return {
                 "uid": event_uid,
                 "href": event_path,
@@ -326,14 +322,12 @@ class CalendarClient(BaseNextcloudClient):
             response = await self._client.delete(event_path)
             response.raise_for_status()
 
-            logger.info(
-                f"Successfully deleted event {event_uid} from calendar {calendar_name}"
-            )
+            logger.debug(f"Deleted event {event_uid}")
             return {"status_code": response.status_code}
 
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.info(f"Event {event_uid} not found in calendar {calendar_name}")
+                logger.debug(f"Event {event_uid} not found")
                 return {"status_code": 404}
             logger.error(f"HTTP error deleting event: {e}")
             raise e
@@ -363,9 +357,7 @@ class CalendarClient(BaseNextcloudClient):
             event_data["href"] = event_path
             event_data["etag"] = etag
 
-            logger.info(
-                f"Successfully retrieved event {event_uid} from calendar {calendar_name}"
-            )
+            logger.debug(f"Retrieved event {event_uid}")
             return event_data, etag
 
         except HTTPStatusError as e:
@@ -948,7 +940,7 @@ class CalendarClient(BaseNextcloudClient):
             )
             response.raise_for_status()
 
-            logger.info(f"Successfully created calendar: {calendar_name}")
+            logger.debug(f"Created calendar: {calendar_name}")
             return {
                 "name": calendar_name,
                 "display_name": display_name or calendar_name,
@@ -969,7 +961,7 @@ class CalendarClient(BaseNextcloudClient):
             response = await self._client.delete(calendar_path)
             response.raise_for_status()
 
-            logger.info(f"Successfully deleted calendar: {calendar_name}")
+            logger.debug(f"Deleted calendar: {calendar_name}")
             return {"status_code": response.status_code}
 
         except Exception as e:
