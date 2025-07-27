@@ -1,3 +1,32 @@
+## [Unreleased]
+
+### Feat
+
+- **calendar**: Add comprehensive Calendar app support via CalDAV protocol (Issue #74)
+- **calendar**: Add `nc_calendar_list_calendars` tool for listing available calendars
+- **calendar**: Add `nc_calendar_create_event` tool with full feature support (recurrence, reminders, attendees, categories)
+- **calendar**: Add `nc_calendar_list_events` tool with advanced filtering (date range, attendees, categories, status)
+- **calendar**: Add `nc_calendar_get_event` tool for retrieving detailed event information
+- **calendar**: Add `nc_calendar_update_event` tool for modifying existing events
+- **calendar**: Add `nc_calendar_delete_event` tool for removing events
+- **calendar**: Add `nc_calendar_create_meeting` tool for quick meeting creation with smart defaults
+- **calendar**: Add `nc_calendar_get_upcoming_events` tool for viewing upcoming events
+- **calendar**: Add `nc_calendar_find_availability` tool for intelligent scheduling assistance
+- **calendar**: Add `nc_calendar_bulk_operations` tool for efficient batch event management
+- **calendar**: Add `nc_calendar_manage_calendar` tool for calendar creation and management
+
+### Fix
+
+- **calendar**: Fix type annotations in calendar client for better Pylance compatibility
+- **calendar**: Fix alarm trigger formatting using proper timedelta objects
+- **calendar**: Fix event update handling to merge existing data with new changes
+- **calendar**: Fix categories extraction from icalendar objects
+
+### Refactor
+
+- **calendar**: Implement CalDAV client following existing NextCloud client patterns
+- **calendar**: Add comprehensive calendar integration tests covering all scenarios
+
 ## v0.5.0 (2025-07-26)
 
 ### Feat

@@ -5,6 +5,10 @@ import uuid
 from nextcloud_mcp_server.client import NextcloudClient
 from httpx import HTTPStatusError
 import asyncio
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
