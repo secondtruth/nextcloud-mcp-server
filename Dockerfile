@@ -6,4 +6,4 @@ COPY . .
 
 RUN uv sync --locked --no-dev
 
-CMD ["/app/.venv/bin/mcp", "run", "--transport", "sse", "/app/nextcloud_mcp_server/server.py:mcp"]
+CMD ["/app/.venv/bin/mcp", "run", "--transport", "sse", "/app/nextcloud_mcp_server/server/__init__.py:mcp"]

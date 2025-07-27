@@ -52,6 +52,7 @@ services:
       - NEXTCLOUD_HOST=http://app:80
       - NEXTCLOUD_USERNAME=admin
       - NEXTCLOUD_PASSWORD=admin
+      - FASTMCP_HOST=0.0.0.0
 
 volumes:
   nextcloud:
