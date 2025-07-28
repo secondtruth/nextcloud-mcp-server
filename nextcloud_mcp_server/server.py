@@ -372,7 +372,7 @@ async def nc_calendar_create_event(
     color: str = "",
 ):
     """Create a comprehensive calendar event with full feature support
-    
+
     Args:
         calendar_name: Name of the calendar to create the event in
         title: Event title
@@ -394,7 +394,7 @@ async def nc_calendar_create_event(
         attendees: Comma-separated email addresses
         url: Related URL for the event
         color: Event color (hex or name)
-    
+
     Returns:
         Dict with event creation result
     """
@@ -609,16 +609,16 @@ async def nc_calendar_create_meeting(
     reminder_minutes: int = 15,
 ):
     """Quick meeting creation with smart defaults
-    
+
     This is a convenience function for creating events with common meeting defaults.
     It automatically:
     - Calculates end time based on duration
     - Sets status to CONFIRMED
     - Adds a reminder
     - Uses simpler date/time inputs instead of full ISO format
-    
+
     For full control over all event properties, use nc_calendar_create_event instead.
-    
+
     Args:
         title: Meeting title
         date: Meeting date (YYYY-MM-DD format, e.g., "2025-01-15")
@@ -630,7 +630,7 @@ async def nc_calendar_create_meeting(
         location: Meeting location
         description: Meeting description/agenda
         reminder_minutes: Minutes before meeting to send reminder (default: 15)
-    
+
     Returns:
         Dict with meeting creation result
     """

@@ -125,10 +125,14 @@ class CalendarClient(BaseNextcloudClient):
 
         except HTTPStatusError as e:
             if e.response.status_code == 401:
-                logger.warning("Authentication failed for CalDAV - Calendar app may not be enabled for this user")
+                logger.warning(
+                    "Authentication failed for CalDAV - Calendar app may not be enabled for this user"
+                )
                 return []
             elif e.response.status_code == 404:
-                logger.warning("CalDAV endpoint not found - Calendar app may not be installed")
+                logger.warning(
+                    "CalDAV endpoint not found - Calendar app may not be installed"
+                )
                 return []
             logger.error(f"HTTP error listing calendars: {e}")
             raise e
@@ -435,7 +439,6 @@ class CalendarClient(BaseNextcloudClient):
         # Add alarms/reminders
         reminder_minutes = event_data.get("reminder_minutes", 0)
         if reminder_minutes > 0:
-
             alarm = Alarm()
             alarm.add("action", "DISPLAY")
             alarm.add("description", "Event reminder")
