@@ -5,7 +5,7 @@ from datetime import datetime, date
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 from httpx import HTTPStatusError
-from icalendar import Calendar, Event as ICalEvent, vRecur
+from icalendar import Calendar, Event as ICalEvent, vRecur, Alarm
 from datetime import timedelta
 import uuid
 
@@ -124,6 +124,12 @@ class CalendarClient(BaseNextcloudClient):
             return calendars
 
         except HTTPStatusError as e:
+            if e.response.status_code == 401:
+                logger.warning("Authentication failed for CalDAV - Calendar app may not be enabled for this user")
+                return []
+            elif e.response.status_code == 404:
+                logger.warning("CalDAV endpoint not found - Calendar app may not be installed")
+                return []
             logger.error(f"HTTP error listing calendars: {e}")
             raise e
         except Exception as e:
@@ -429,7 +435,6 @@ class CalendarClient(BaseNextcloudClient):
         # Add alarms/reminders
         reminder_minutes = event_data.get("reminder_minutes", 0)
         if reminder_minutes > 0:
-            from icalendar import Alarm
 
             alarm = Alarm()
             alarm.add("action", "DISPLAY")

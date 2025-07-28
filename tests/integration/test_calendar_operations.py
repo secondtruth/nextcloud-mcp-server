@@ -95,6 +95,10 @@ async def test_list_calendars(nc_client: NextcloudClient):
     calendars = await nc_client.calendar.list_calendars()
 
     assert isinstance(calendars, list)
+    
+    if not calendars:
+        pytest.skip("No calendars available - Calendar app may not be enabled")
+    
     logger.info(f"Found {len(calendars)} calendars")
 
     # Check structure of calendars

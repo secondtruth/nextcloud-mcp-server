@@ -1,6 +1,7 @@
 # server.py
 import logging
 from typing import Optional
+from datetime import datetime, timedelta
 from nextcloud_mcp_server.config import setup_logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -351,31 +352,52 @@ async def nc_calendar_list_calendars(ctx: Context):
 async def nc_calendar_create_event(
     calendar_name: str,
     title: str,
-    start_datetime: str,  # ISO format: "2025-01-15T14:00:00" or "2025-01-15" for all-day
+    start_datetime: str,
     ctx: Context,
-    end_datetime: str = "",  # Empty for all-day events
+    end_datetime: str = "",
     all_day: bool = False,
     description: str = "",
     location: str = "",
-    categories: str = "",  # "work,meeting" - comma separated
-    # Recurrence
+    categories: str = "",
     recurring: bool = False,
-    recurrence_rule: str = "",  # "FREQ=WEEKLY;BYDAY=MO,WE,FR" (RFC5545 RRULE)
-    recurrence_end_date: str = "",  # When to stop recurring
-    # Notifications/Alarms
-    reminder_minutes: int = 15,  # Minutes before event to remind
-    reminder_email: bool = False,  # Email notification
-    # Event properties
-    status: str = "CONFIRMED",  # CONFIRMED, TENTATIVE, CANCELLED
-    priority: int = 5,  # 1-9 (1=highest, 9=lowest, 5=normal)
-    privacy: str = "PUBLIC",  # PUBLIC, PRIVATE, CONFIDENTIAL
-    # Attendees
-    attendees: str = "",  # "email1@domain.com,email2@domain.com"
-    # Additional
-    url: str = "",  # Related URL
-    color: str = "",  # Event color (hex or name)
+    recurrence_rule: str = "",
+    recurrence_end_date: str = "",
+    reminder_minutes: int = 15,
+    reminder_email: bool = False,
+    status: str = "CONFIRMED",
+    priority: int = 5,
+    privacy: str = "PUBLIC",
+    attendees: str = "",
+    url: str = "",
+    color: str = "",
 ):
-    """Create a comprehensive calendar event with full feature support"""
+    """Create a comprehensive calendar event with full feature support
+    
+    Args:
+        calendar_name: Name of the calendar to create the event in
+        title: Event title
+        start_datetime: ISO format: "2025-01-15T14:00:00" or "2025-01-15" for all-day
+        ctx: MCP context
+        end_datetime: ISO format end time, empty for all-day events
+        all_day: Whether this is an all-day event
+        description: Event description/details
+        location: Event location
+        categories: Comma-separated categories (e.g., "work,meeting")
+        recurring: Whether this is a recurring event
+        recurrence_rule: RFC5545 RRULE (e.g., "FREQ=WEEKLY;BYDAY=MO,WE,FR")
+        recurrence_end_date: When to stop recurring
+        reminder_minutes: Minutes before event to send reminder
+        reminder_email: Whether to send email notification
+        status: Event status: CONFIRMED, TENTATIVE, or CANCELLED
+        priority: Priority level 1-9 (1=highest, 9=lowest, 5=normal)
+        privacy: Privacy level: PUBLIC, PRIVATE, or CONFIDENTIAL
+        attendees: Comma-separated email addresses
+        url: Related URL for the event
+        color: Event color (hex or name)
+    
+    Returns:
+        Dict with event creation result
+    """
     client: NextcloudClient = ctx.request_context.lifespan_context.client
 
     event_data = {
@@ -406,13 +428,13 @@ async def nc_calendar_create_event(
 async def nc_calendar_list_events(
     calendar_name: str,
     ctx: Context,
-    start_date: str = "",  # "2025-01-01"
-    end_date: str = "",  # "2025-01-31"
+    start_date: str = "",
+    end_date: str = "",
     limit: int = 50,
     min_attendees: Optional[int] = None,
     min_duration_minutes: Optional[int] = None,
-    categories: Optional[str] = None,  # Comma-separated: "work,meeting"
-    status: Optional[str] = None,  # "CONFIRMED", "TENTATIVE", "CANCELLED"
+    categories: Optional[str] = None,
+    status: Optional[str] = None,
     title_contains: Optional[str] = None,
     location_contains: Optional[str] = None,
     search_all_calendars: bool = False,
@@ -421,16 +443,20 @@ async def nc_calendar_list_events(
 
     Args:
         calendar_name: Name of the calendar to search. Ignored if search_all_calendars=True.
-        start_date: Start date for search (YYYY-MM-DD format)
-        end_date: End date for search (YYYY-MM-DD format)
+        ctx: MCP context
+        start_date: Start date for search (YYYY-MM-DD format, e.g., "2025-01-01")
+        end_date: End date for search (YYYY-MM-DD format, e.g., "2025-01-31")
         limit: Maximum number of events to return
         min_attendees: Filter events with at least this many attendees
         min_duration_minutes: Filter events with at least this duration
-        categories: Filter events containing any of these categories (comma-separated)
-        status: Filter events by status (CONFIRMED, TENTATIVE, CANCELLED)
+        categories: Filter events containing any of these categories (comma-separated, e.g., "work,meeting")
+        status: Filter events by status (CONFIRMED, TENTATIVE, or CANCELLED)
         title_contains: Filter events where title contains this text
         location_contains: Filter events where location contains this text
         search_all_calendars: If True, search across all calendars instead of just one
+
+    Returns:
+        List of events matching the filters
     """
     client: NextcloudClient = ctx.request_context.lifespan_context.client
 
@@ -572,8 +598,8 @@ async def nc_calendar_delete_event(
 @mcp.tool()
 async def nc_calendar_create_meeting(
     title: str,
-    date: str,  # "2025-01-15"
-    time: str,  # "14:00"
+    date: str,
+    time: str,
     ctx: Context,
     duration_minutes: int = 60,
     calendar_name: str = "personal",
@@ -582,14 +608,38 @@ async def nc_calendar_create_meeting(
     description: str = "",
     reminder_minutes: int = 15,
 ):
-    """Quick meeting creation with smart defaults"""
+    """Quick meeting creation with smart defaults
+    
+    This is a convenience function for creating events with common meeting defaults.
+    It automatically:
+    - Calculates end time based on duration
+    - Sets status to CONFIRMED
+    - Adds a reminder
+    - Uses simpler date/time inputs instead of full ISO format
+    
+    For full control over all event properties, use nc_calendar_create_event instead.
+    
+    Args:
+        title: Meeting title
+        date: Meeting date (YYYY-MM-DD format, e.g., "2025-01-15")
+        time: Meeting start time (HH:MM format, e.g., "14:00")
+        ctx: MCP context
+        duration_minutes: Meeting duration in minutes (default: 60)
+        calendar_name: Calendar to create the meeting in (default: "personal")
+        attendees: Comma-separated email addresses of attendees
+        location: Meeting location
+        description: Meeting description/agenda
+        reminder_minutes: Minutes before meeting to send reminder (default: 15)
+    
+    Returns:
+        Dict with meeting creation result
+    """
     client: NextcloudClient = ctx.request_context.lifespan_context.client
 
     # Combine date and time for start_datetime
     start_datetime = f"{date}T{time}:00"
 
     # Calculate end_datetime
-    from datetime import datetime, timedelta
 
     start_dt = datetime.fromisoformat(start_datetime)
     end_dt = start_dt + timedelta(minutes=duration_minutes)
@@ -621,8 +671,6 @@ async def nc_calendar_get_upcoming_events(
 ):
     """Get upcoming events in next N days"""
     client: NextcloudClient = ctx.request_context.lifespan_context.client
-
-    from datetime import datetime, timedelta
 
     now = datetime.now()
     end_date = now + timedelta(days=days_ahead)
