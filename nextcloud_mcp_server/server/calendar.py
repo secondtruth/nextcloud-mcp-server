@@ -3,6 +3,8 @@ from mcp.server.fastmcp import FastMCP, Context
 from nextcloud_mcp_server.client import NextcloudClient
 
 logger = logging.getLogger(__name__)
+
+
 def configure_calendar_tools(mcp: FastMCP):
     # Calendar tools
     @mcp.tool()
@@ -10,7 +12,6 @@ def configure_calendar_tools(mcp: FastMCP):
         """List all available calendars for the user"""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.calendar.list_calendars()
-
 
     @mcp.tool()
     async def nc_calendar_create_event(
@@ -87,7 +88,6 @@ def configure_calendar_tools(mcp: FastMCP):
 
         return await client.calendar.create_event(calendar_name, event_data)
 
-
     @mcp.tool()
     async def nc_calendar_list_events(
         calendar_name: str,
@@ -162,7 +162,6 @@ def configure_calendar_tools(mcp: FastMCP):
 
             return events
 
-
     @mcp.tool()
     async def nc_calendar_get_event(
         calendar_name: str,
@@ -173,7 +172,6 @@ def configure_calendar_tools(mcp: FastMCP):
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         event_data, etag = await client.calendar.get_event(calendar_name, event_uid)
         return event_data
-
 
     @mcp.tool()
     async def nc_calendar_update_event(
@@ -247,7 +245,6 @@ def configure_calendar_tools(mcp: FastMCP):
             calendar_name, event_uid, event_data, etag
         )
 
-
     @mcp.tool()
     async def nc_calendar_delete_event(
         calendar_name: str,
@@ -257,7 +254,6 @@ def configure_calendar_tools(mcp: FastMCP):
         """Delete a calendar event"""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.calendar.delete_event(calendar_name, event_uid)
-
 
     @mcp.tool()
     async def nc_calendar_create_meeting(
@@ -325,7 +321,6 @@ def configure_calendar_tools(mcp: FastMCP):
 
         return await client.calendar.create_event(calendar_name, event_data)
 
-
     @mcp.tool()
     async def nc_calendar_get_upcoming_events(
         ctx: Context,
@@ -377,7 +372,6 @@ def configure_calendar_tools(mcp: FastMCP):
             # Sort by start time and limit
             all_events.sort(key=lambda x: x.get("start_datetime", ""))
             return all_events[:limit]
-
 
     @mcp.tool()
     async def nc_calendar_find_availability(
@@ -440,7 +434,6 @@ def configure_calendar_tools(mcp: FastMCP):
             constraints=constraints,
         )
 
-
     @mcp.tool()
     async def nc_calendar_bulk_operations(
         operation: str,  # "update", "delete", "move"
@@ -501,7 +494,9 @@ def configure_calendar_tools(mcp: FastMCP):
         if title_contains is not None:
             filter_criteria["title_contains"] = title_contains
         if categories is not None:
-            filter_criteria["categories"] = [cat.strip() for cat in categories.split(",")]
+            filter_criteria["categories"] = [
+                cat.strip() for cat in categories.split(",")
+            ]
         if status is not None:
             filter_criteria["status"] = status
         if location_contains is not None:
@@ -515,10 +510,14 @@ def configure_calendar_tools(mcp: FastMCP):
             # Find matching events and delete them
             if calendar_name:
                 events = await client.calendar.get_calendar_events(
-                    calendar_name=calendar_name, start_date=start_date, end_date=end_date
+                    calendar_name=calendar_name,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
                 if filter_criteria:
-                    events = client.calendar._apply_event_filters(events, filter_criteria)
+                    events = client.calendar._apply_event_filters(
+                        events, filter_criteria
+                    )
             else:
                 events = await client.calendar.search_events_across_calendars(
                     start_date=start_date, end_date=end_date, filters=filter_criteria
@@ -579,7 +578,9 @@ def configure_calendar_tools(mcp: FastMCP):
             if not update_data:
                 raise ValueError("No update data provided for update operation")
 
-            return await client.calendar.bulk_update_events(filter_criteria, update_data)
+            return await client.calendar.bulk_update_events(
+                filter_criteria, update_data
+            )
 
         elif operation == "move":
             if not target_calendar:
@@ -588,10 +589,14 @@ def configure_calendar_tools(mcp: FastMCP):
             # Find matching events
             if calendar_name:
                 events = await client.calendar.get_calendar_events(
-                    calendar_name=calendar_name, start_date=start_date, end_date=end_date
+                    calendar_name=calendar_name,
+                    start_date=start_date,
+                    end_date=end_date,
                 )
                 if filter_criteria:
-                    events = client.calendar._apply_event_filters(events, filter_criteria)
+                    events = client.calendar._apply_event_filters(
+                        events, filter_criteria
+                    )
             else:
                 events = await client.calendar.search_events_across_calendars(
                     start_date=start_date, end_date=end_date, filters=filter_criteria
@@ -653,7 +658,6 @@ def configure_calendar_tools(mcp: FastMCP):
                 "target_calendar": target_calendar,
                 "results": results,
             }
-
 
     @mcp.tool()
     async def nc_calendar_manage_calendar(
