@@ -1,4 +1,6 @@
 import logging
+import datetime as dt
+from typing import Optional
 from mcp.server.fastmcp import FastMCP, Context
 from nextcloud_mcp_server.client import NextcloudClient
 
@@ -301,8 +303,8 @@ def configure_calendar_tools(mcp: FastMCP):
 
         # Calculate end_datetime
 
-        start_dt = datetime.fromisoformat(start_datetime)
-        end_dt = start_dt + timedelta(minutes=duration_minutes)
+        start_dt = dt.datetime.fromisoformat(start_datetime)
+        end_dt = start_dt + dt.timedelta(minutes=duration_minutes)
         end_datetime = end_dt.isoformat()
 
         event_data = {
@@ -331,8 +333,8 @@ def configure_calendar_tools(mcp: FastMCP):
         """Get upcoming events in next N days"""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
 
-        now = datetime.now()
-        end_date = now + timedelta(days=days_ahead)
+        now = dt.datetime.now()
+        end_date = now + dt.timedelta(days=days_ahead)
 
         start_date_str = now.strftime("%Y%m%dT%H%M%SZ")
         end_date_str = end_date.strftime("%Y%m%dT%H%M%SZ")
