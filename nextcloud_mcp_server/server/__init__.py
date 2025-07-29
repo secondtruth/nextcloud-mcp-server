@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from nextcloud_mcp_server.server.notes import configure_notes_tools
 from nextcloud_mcp_server.server.tables import configure_tables_tools
 from nextcloud_mcp_server.server.webdav import configure_webdav_tools
+from nextcloud_mcp_server.server.calendar import configure_calendar_tools
 
 setup_logging()
 
@@ -51,6 +52,7 @@ async def nc_get_capabilities():
 configure_notes_tools(mcp)
 configure_tables_tools(mcp)
 configure_webdav_tools(mcp)
+configure_calendar_tools(mcp)
 
 
 def run():
