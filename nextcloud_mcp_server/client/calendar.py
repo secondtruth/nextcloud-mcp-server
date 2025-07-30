@@ -46,99 +46,75 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        try:
-            response = await self._client.request(
-                "PROPFIND", caldav_path, content=propfind_body, headers=headers
+        response = await self._client.request(
+            "PROPFIND", caldav_path, content=propfind_body, headers=headers
+        )
+        response.raise_for_status()
+
+        # Parse XML response
+        root = ET.fromstring(response.content)
+        calendars = []
+
+        for response_elem in root.findall(".//{DAV:}response"):
+            href = response_elem.find(".//{DAV:}href")
+            if href is None:
+                continue
+
+            href_text = href.text or ""
+            if not href_text.endswith("/"):
+                continue  # Skip non-calendar resources
+
+            # Extract calendar name from href
+            calendar_name = href_text.rstrip("/").split("/")[-1]
+            if not calendar_name or calendar_name == self.username:
+                continue
+
+            # Get properties
+            propstat = response_elem.find(".//{DAV:}propstat")
+            if propstat is None:
+                continue
+
+            prop = propstat.find(".//{DAV:}prop")
+            if prop is None:
+                continue
+
+            # Check if it's a calendar resource
+            resourcetype = prop.find(".//{DAV:}resourcetype")
+            is_calendar = (
+                resourcetype is not None
+                and resourcetype.find(".//{urn:ietf:params:xml:ns:caldav}calendar")
+                is not None
             )
-            response.raise_for_status()
 
-            # Parse XML response
-            root = ET.fromstring(response.content)
-            calendars = []
+            if not is_calendar:
+                continue
 
-            for response_elem in root.findall(".//{DAV:}response"):
-                href = response_elem.find(".//{DAV:}href")
-                if href is None:
-                    continue
+            # Extract calendar properties
+            displayname_elem = prop.find(".//{DAV:}displayname")
+            displayname = (
+                displayname_elem.text if displayname_elem is not None else calendar_name
+            )
 
-                href_text = href.text or ""
-                if not href_text.endswith("/"):
-                    continue  # Skip non-calendar resources
+            description_elem = prop.find(
+                ".//{urn:ietf:params:xml:ns:caldav}calendar-description"
+            )
+            description = description_elem.text if description_elem is not None else ""
 
-                # Extract calendar name from href
-                calendar_name = href_text.rstrip("/").split("/")[-1]
-                if not calendar_name or calendar_name == self.username:
-                    continue
+            color_elem = prop.find(".//{http://calendarserver.org/ns/}calendar-color")
+            color = color_elem.text if color_elem is not None else "#1976D2"
 
-                # Get properties
-                propstat = response_elem.find(".//{DAV:}propstat")
-                if propstat is None:
-                    continue
+            calendars.append(
+                {
+                    "name": calendar_name,
+                    "display_name": displayname,
+                    "description": description,
+                    "color": color,
+                    "href": href_text,
+                }
+            )
 
-                prop = propstat.find(".//{DAV:}prop")
-                if prop is None:
-                    continue
-
-                # Check if it's a calendar resource
-                resourcetype = prop.find(".//{DAV:}resourcetype")
-                is_calendar = (
-                    resourcetype is not None
-                    and resourcetype.find(".//{urn:ietf:params:xml:ns:caldav}calendar")
-                    is not None
-                )
-
-                if not is_calendar:
-                    continue
-
-                # Extract calendar properties
-                displayname_elem = prop.find(".//{DAV:}displayname")
-                displayname = (
-                    displayname_elem.text
-                    if displayname_elem is not None
-                    else calendar_name
-                )
-
-                description_elem = prop.find(
-                    ".//{urn:ietf:params:xml:ns:caldav}calendar-description"
-                )
-                description = (
-                    description_elem.text if description_elem is not None else ""
-                )
-
-                color_elem = prop.find(
-                    ".//{http://calendarserver.org/ns/}calendar-color"
-                )
-                color = color_elem.text if color_elem is not None else "#1976D2"
-
-                calendars.append(
-                    {
-                        "name": calendar_name,
-                        "display_name": displayname,
-                        "description": description,
-                        "color": color,
-                        "href": href_text,
-                    }
-                )
-
-            logger.debug(f"Found {len(calendars)} calendars")
-            return calendars
-
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                logger.warning(
-                    "Authentication failed for CalDAV - Calendar app may not be enabled for this user"
-                )
-                return []
-            elif e.response.status_code == 404:
-                logger.warning(
-                    "CalDAV endpoint not found - Calendar app may not be installed"
-                )
-                return []
-            logger.error(f"HTTP error listing calendars: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error listing calendars: {e}")
-            raise e
+        logger.debug(f"Found {len(calendars)} calendars")
+        return calendars
 
     async def get_calendar_events(
         self,
@@ -180,55 +156,42 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        try:
-            response = await self._client.request(
-                "REPORT", calendar_path, content=report_body, headers=headers
-            )
-            response.raise_for_status()
+        response = await self._make_request(
+            "REPORT", calendar_path, content=report_body, headers=headers
+        )
 
-            # Parse XML response and extract events
-            root = ET.fromstring(response.content)
-            events = []
+        # Parse XML response and extract events
+        root = ET.fromstring(response.content)
+        events = []
 
-            for response_elem in root.findall(".//{DAV:}response"):
-                href = response_elem.find(".//{DAV:}href")
-                if href is None:
-                    continue
+        for response_elem in root.findall(".//{DAV:}response"):
+            href = response_elem.find(".//{DAV:}href")
+            if href is None:
+                continue
 
-                propstat = response_elem.find(".//{DAV:}propstat")
-                if propstat is None:
-                    continue
+            propstat = response_elem.find(".//{DAV:}propstat")
+            if propstat is None:
+                continue
 
-                prop = propstat.find(".//{DAV:}prop")
-                if prop is None:
-                    continue
+            prop = propstat.find(".//{DAV:}prop")
+            if prop is None:
+                continue
 
-                calendar_data = prop.find(
-                    ".//{urn:ietf:params:xml:ns:caldav}calendar-data"
-                )
-                etag_elem = prop.find(".//{DAV:}getetag")
+            calendar_data = prop.find(".//{urn:ietf:params:xml:ns:caldav}calendar-data")
+            etag_elem = prop.find(".//{DAV:}getetag")
 
-                if calendar_data is not None and calendar_data.text:
-                    event_data = self._parse_ical_event(calendar_data.text)
-                    if event_data:
-                        event_data["href"] = href.text
-                        event_data["etag"] = (
-                            etag_elem.text if etag_elem is not None else ""
-                        )
-                        events.append(event_data)
+            if calendar_data is not None and calendar_data.text:
+                event_data = self._parse_ical_event(calendar_data.text)
+                if event_data:
+                    event_data["href"] = href.text
+                    event_data["etag"] = etag_elem.text if etag_elem is not None else ""
+                    events.append(event_data)
 
-                if len(events) >= limit:
-                    break
+            if len(events) >= limit:
+                break
 
-            logger.debug(f"Found {len(events)} events")
-            return events
-
-        except HTTPStatusError as e:
-            logger.error(f"HTTP error getting calendar events: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error getting calendar events: {e}")
-            raise e
+        logger.debug(f"Found {len(events)} events")
+        return events
 
     async def create_event(
         self, calendar_name: str, event_data: Dict[str, Any]
@@ -246,26 +209,17 @@ class CalendarClient(BaseNextcloudClient):
             "If-None-Match": "*",  # Ensure we're creating, not updating
         }
 
-        try:
-            response = await self._client.put(
-                event_path, content=ical_content, headers=headers
-            )
-            response.raise_for_status()
+        response = await self._make_request(
+            "PUT", event_path, content=ical_content, headers=headers
+        )
 
-            logger.debug(f"Created event {event_uid}")
-            return {
-                "uid": event_uid,
-                "href": event_path,
-                "etag": response.headers.get("etag", ""),
-                "status_code": response.status_code,
-            }
-
-        except HTTPStatusError as e:
-            logger.error(f"HTTP error creating event: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error creating event: {e}")
-            raise e
+        logger.debug(f"Created event {event_uid}")
+        return {
+            "uid": event_uid,
+            "href": event_path,
+            "etag": response.headers.get("etag", ""),
+            "status_code": response.status_code,
+        }
 
     async def update_event(
         self,
@@ -303,10 +257,9 @@ class CalendarClient(BaseNextcloudClient):
             headers["If-Match"] = etag
 
         try:
-            response = await self._client.put(
-                event_path, content=ical_content, headers=headers
+            response = await self._make_request(
+                "PUT", event_path, content=ical_content, headers=headers
             )
-            response.raise_for_status()
 
             logger.debug(f"Updated event {event_uid}")
             return {
@@ -329,8 +282,7 @@ class CalendarClient(BaseNextcloudClient):
         event_path = f"{self._get_caldav_base_path()}/{calendar_name}/{event_filename}"
 
         try:
-            response = await self._client.delete(event_path)
-            response.raise_for_status()
+            response = await self._make_request("DELETE", event_path)
 
             logger.debug(f"Deleted event {event_uid}")
             return {"status_code": response.status_code}
@@ -355,8 +307,7 @@ class CalendarClient(BaseNextcloudClient):
         headers = {"Accept": "text/calendar"}
 
         try:
-            response = await self._client.get(event_path, headers=headers)
-            response.raise_for_status()
+            response = await self._make_request("GET", event_path, headers=headers)
 
             etag = response.headers.get("etag", "")
             event_data = self._parse_ical_event(response.text)
@@ -943,10 +894,9 @@ class CalendarClient(BaseNextcloudClient):
 
             headers = {"Content-Type": "application/xml", "Depth": "0"}
 
-            response = await self._client.request(
+            response = await self._make_request(
                 "MKCALENDAR", calendar_path, content=mkcol_body, headers=headers
             )
-            response.raise_for_status()
 
             logger.debug(f"Created calendar: {calendar_name}")
             return {
@@ -966,8 +916,7 @@ class CalendarClient(BaseNextcloudClient):
         try:
             calendar_path = f"{self._get_caldav_base_path()}/{calendar_name}/"
 
-            response = await self._client.delete(calendar_path)
-            response.raise_for_status()
+            response = await self._make_request("DELETE", calendar_path)
 
             logger.debug(f"Deleted calendar: {calendar_name}")
             return {"status_code": response.status_code}
