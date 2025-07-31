@@ -1,12 +1,11 @@
 """CalDAV client for NextCloud calendar operations."""
 
 import xml.etree.ElementTree as ET
-from datetime import datetime, date
+import datetime as dt
 from typing import Dict, Any, List, Optional, Tuple
 import logging
 from httpx import HTTPStatusError
 from icalendar import Calendar, Event as ICalEvent, vRecur, Alarm
-from datetime import timedelta
 import uuid
 
 from .base import BaseNextcloudClient
@@ -347,16 +346,16 @@ class CalendarClient(BaseNextcloudClient):
 
         if start_str:  # Only parse if start_datetime is provided
             if all_day:
-                start_date = datetime.fromisoformat(start_str.split("T")[0]).date()
+                start_date = dt.datetime.fromisoformat(start_str.split("T")[0]).date()
                 event.add("dtstart", start_date)
                 if end_str:
-                    end_date = datetime.fromisoformat(end_str.split("T")[0]).date()
+                    end_date = dt.datetime.fromisoformat(end_str.split("T")[0]).date()
                     event.add("dtend", end_date)
             else:
-                start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                start_dt = dt.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                 event.add("dtstart", start_dt)
                 if end_str:
-                    end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                    end_dt = dt.datetime.fromisoformat(end_str.replace("Z", "+00:00"))
                     event.add("dtend", end_dt)
 
         # Add categories
@@ -393,7 +392,7 @@ class CalendarClient(BaseNextcloudClient):
             alarm = Alarm()
             alarm.add("action", "DISPLAY")
             alarm.add("description", "Event reminder")
-            alarm.add("trigger", timedelta(minutes=-reminder_minutes))
+            alarm.add("trigger", dt.timedelta(minutes=-reminder_minutes))
             event.add_component(alarm)
 
         # Add attendees
@@ -404,7 +403,7 @@ class CalendarClient(BaseNextcloudClient):
                     event.add("attendee", f"mailto:{email.strip()}")
 
         # Add timestamps
-        now = datetime.utcnow()
+        now = dt.datetime.now(dt.UTC)
         event.add("created", now)
         event.add("dtstamp", now)
         event.add("last-modified", now)
@@ -432,8 +431,8 @@ class CalendarClient(BaseNextcloudClient):
                     # Handle dates
                     dtstart = component.get("dtstart")
                     if dtstart:
-                        if isinstance(dtstart.dt, date) and not isinstance(
-                            dtstart.dt, datetime
+                        if isinstance(dtstart.dt, dt.date) and not isinstance(
+                            dtstart.dt, dt.datetime
                         ):
                             event_data["start_datetime"] = dtstart.dt.isoformat()
                             event_data["all_day"] = True
@@ -443,8 +442,8 @@ class CalendarClient(BaseNextcloudClient):
 
                     dtend = component.get("dtend")
                     if dtend:
-                        if isinstance(dtend.dt, date) and not isinstance(
-                            dtend.dt, datetime
+                        if isinstance(dtend.dt, dt.date) and not isinstance(
+                            dtend.dt, dt.datetime
                         ):
                             event_data["end_datetime"] = dtend.dt.isoformat()
                         else:
@@ -576,10 +575,12 @@ class CalendarClient(BaseNextcloudClient):
                 end_str = event.get("end_datetime", "")
                 if start_str and end_str:
                     try:
-                        start_dt = datetime.fromisoformat(
+                        start_dt = dt.datetime.fromisoformat(
                             start_str.replace("Z", "+00:00")
                         )
-                        end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                        end_dt = dt.datetime.fromisoformat(
+                            end_str.replace("Z", "+00:00")
+                        )
                         duration_minutes = (end_dt - start_dt).total_seconds() / 60
                         if duration_minutes < filters["min_duration_minutes"]:
                             return False
@@ -630,9 +631,9 @@ class CalendarClient(BaseNextcloudClient):
         try:
             # Set default date range if not provided
             if not date_range_start:
-                date_range_start = datetime.now().strftime("%Y-%m-%d")
+                date_range_start = dt.datetime.now().strftime("%Y-%m-%d")
             if not date_range_end:
-                end_date = datetime.now() + timedelta(days=7)
+                end_date = dt.datetime.now() + dt.timedelta(days=7)
                 date_range_end = end_date.strftime("%Y-%m-%d")
 
             # Get all events in the date range
@@ -688,13 +689,13 @@ class CalendarClient(BaseNextcloudClient):
         available_slots = []
 
         try:
-            current_date = datetime.fromisoformat(start_date)
-            end_date_dt = datetime.fromisoformat(end_date)
+            current_date = dt.datetime.fromisoformat(start_date)
+            end_date_dt = dt.datetime.fromisoformat(end_date)
 
             while current_date <= end_date_dt:
                 # Skip weekends if requested
                 if exclude_weekends and current_date.weekday() >= 5:
-                    current_date += timedelta(days=1)
+                    current_date += dt.timedelta(days=1)
                     continue
 
                 # Generate slots for this day
@@ -707,7 +708,7 @@ class CalendarClient(BaseNextcloudClient):
                 )
                 available_slots.extend(day_slots)
 
-                current_date += timedelta(days=1)
+                current_date += dt.timedelta(days=1)
 
             return available_slots[:10]  # Limit to 10 slots
 
@@ -717,7 +718,7 @@ class CalendarClient(BaseNextcloudClient):
 
     def _generate_day_slots(
         self,
-        date: datetime,
+        date: dt.datetime,
         busy_events: List[Dict[str, Any]],
         duration_minutes: int,
         business_hours_only: bool,
@@ -737,10 +738,10 @@ class CalendarClient(BaseNextcloudClient):
             day_busy_periods = []
             for event in busy_events:
                 try:
-                    event_start = datetime.fromisoformat(
+                    event_start = dt.datetime.fromisoformat(
                         event["start_datetime"].replace("Z", "+00:00")
                     )
-                    event_end = datetime.fromisoformat(
+                    event_end = dt.datetime.fromisoformat(
                         event["end_datetime"].replace("Z", "+00:00")
                     )
 
@@ -758,7 +759,7 @@ class CalendarClient(BaseNextcloudClient):
                 hour=start_hour, minute=0, second=0, microsecond=0
             )
             end_time = date.replace(hour=end_hour, minute=0, second=0, microsecond=0)
-            slot_duration = timedelta(minutes=duration_minutes)
+            slot_duration = dt.timedelta(minutes=duration_minutes)
 
             while current_time + slot_duration <= end_time:
                 slot_end = current_time + slot_duration
@@ -780,7 +781,7 @@ class CalendarClient(BaseNextcloudClient):
                             }
                         )
 
-                current_time += timedelta(minutes=30)  # 30-minute increments
+                current_time += dt.timedelta(minutes=30)  # 30-minute increments
 
             return slots
 
@@ -803,8 +804,8 @@ class CalendarClient(BaseNextcloudClient):
         for time_range in preferred_times:
             try:
                 start_str, end_str = time_range.split("-")
-                pref_start = datetime.strptime(start_str, "%H:%M").time()
-                pref_end = datetime.strptime(end_str, "%H:%M").time()
+                pref_start = dt.datetime.strptime(start_str, "%H:%M").time()
+                pref_end = dt.datetime.strptime(end_str, "%H:%M").time()
 
                 if pref_start <= slot_start <= pref_end:
                     return True
