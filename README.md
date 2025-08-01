@@ -243,6 +243,7 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 *   `NEXTCLOUD_HOST`: The full URL of your Nextcloud instance.
 *   `NEXTCLOUD_USERNAME`: Your Nextcloud username.
 *   `NEXTCLOUD_PASSWORD`: **Important:** It is highly recommended to use a dedicated Nextcloud App Password for security. You can generate one in your Nextcloud Security settings. Alternatively, you can use your regular login password, but this is less secure.
+*   `FASTMCP_HOST`: _Optional:_ By default FastMCP binds to localhost. Use this variable to set a different binding address (e.g. `0.0.0.0`)
 
 ## Running the Server
 
@@ -255,10 +256,12 @@ Ensure your environment variables are loaded, then run the server using `mcp run
 export $(grep -v '^#' .env | xargs)
 
 # Run the server
-mcp run --transport sse nextcloud_mcp_server.server:mcp
+mcp run --transport sse nextcloud_mcp_server.app:mcp
 ```
 
-The server will start, typically listening on `http://0.0.0.0:8000`.
+The server will start, typically listening on `http://localhost:8000`.
+
+> NOTE: To make the server bind to a different address, use the FASTMCP_HOST environmental variable
 
 ### Using Docker
 
