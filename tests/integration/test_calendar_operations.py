@@ -26,22 +26,33 @@ async def temporary_calendar(nc_client: NextcloudClient, test_calendar_name: str
     calendar_name = test_calendar_name
 
     try:
-        # Create a test calendar if possible
-        # Note: Calendar creation might require admin permissions
-        # For now, we'll use an existing calendar or create events in default calendar
+        # Create a test calendar
+        logger.info(f"Creating temporary calendar: {calendar_name}")
+        result = await nc_client.calendar.create_calendar(
+            calendar_name=calendar_name,
+            display_name=f"Test Calendar {calendar_name}",
+            description="Temporary calendar for integration testing",
+            color="#FF5722",
+        )
 
-        # Try to find an existing calendar to use
-        calendars = await nc_client.calendar.list_calendars()
-        if calendars:
-            calendar_name = calendars[0]["name"]
-            logger.info(f"Using existing calendar: {calendar_name}")
-            yield calendar_name
-        else:
-            pytest.skip("No calendars available for testing")
+        if result["status_code"] not in [200, 201]:
+            pytest.skip(f"Failed to create temporary calendar: {result}")
+
+        logger.info(f"Created temporary calendar: {calendar_name}")
+        yield calendar_name
 
     except Exception as e:
         logger.error(f"Error setting up temporary calendar: {e}")
         pytest.skip(f"Calendar setup failed: {e}")
+
+    finally:
+        # Cleanup: Delete the temporary calendar
+        try:
+            logger.info(f"Cleaning up temporary calendar: {calendar_name}")
+            await nc_client.calendar.delete_calendar(calendar_name)
+            logger.info(f"Successfully deleted temporary calendar: {calendar_name}")
+        except Exception as e:
+            logger.error(f"Error deleting temporary calendar {calendar_name}: {e}")
 
 
 @pytest.fixture
@@ -236,11 +247,14 @@ async def test_list_events_in_range(nc_client: NextcloudClient, temporary_event:
     calendar_name = temporary_event["calendar_name"]
 
     # Get events for the next week
-    start_date = datetime.now().strftime("%Y%m%dT000000Z")
-    end_date = (datetime.now() + timedelta(days=7)).strftime("%Y%m%dT235959Z")
+    start_datetime = datetime.now()
+    end_datetime = datetime.now() + timedelta(days=7)
 
     events = await nc_client.calendar.get_calendar_events(
-        calendar_name=calendar_name, start_date=start_date, end_date=end_date, limit=50
+        calendar_name=calendar_name,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
+        limit=50,
     )
 
     assert isinstance(events, list)
