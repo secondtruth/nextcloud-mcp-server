@@ -52,7 +52,7 @@ jobs:
       - name: Verify required apps are installed and ready
         run: |
           echo "Checking if required Nextcloud apps are installed and ready..."
-          
+
           # Check Notes app
           echo "Checking Notes app..."
           max_attempts=30
@@ -67,11 +67,11 @@ jobs:
             sleep 3
           done
           echo "Notes app is ready."
-          
+
           # Check Tables app
           echo "Checking Tables app..."
           attempt=0
-          until curl -u admin:admin -s -w "%{http_code}\n" -o /dev/null http://localhost:8080/ocs/v2.php/apps/tables/api/2/tables | grep -q "200"; do
+          until curl -u admin:admin -H 'OCS-APIRequest: true' -s -w "%{http_code}\n" -o /dev/null http://localhost:8080/ocs/v2.php/apps/tables/api/2/tables | grep -q "200"; do
             attempt=$((attempt + 1))
             if [ $attempt -ge $max_attempts ]; then
               echo "Tables app not ready after $max_attempts attempts."
@@ -81,7 +81,7 @@ jobs:
             sleep 3
           done
           echo "Tables app is ready."
-          
+
           # Check Calendar app (CalDAV endpoint)
           echo "Checking Calendar app..."
           attempt=0
@@ -95,7 +95,7 @@ jobs:
             sleep 3
           done
           echo "Calendar app is ready."
-          
+
           echo "All required apps are installed and ready!"
 
       # Add subsequent steps here, e.g., running tests
