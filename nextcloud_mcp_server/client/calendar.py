@@ -45,10 +45,9 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        response = await self._client.request(
+        response = await self._make_request(
             "PROPFIND", caldav_path, content=propfind_body, headers=headers
         )
-        response.raise_for_status()
 
         # Parse XML response
         root = ET.fromstring(response.content)
