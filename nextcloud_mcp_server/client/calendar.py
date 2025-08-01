@@ -1,5 +1,6 @@
 """CalDAV client for NextCloud calendar operations."""
 
+import asyncio
 import xml.etree.ElementTree as ET
 import datetime as dt
 from typing import Dict, Any, List, Optional, Tuple
@@ -45,10 +46,23 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        response = await self._client.request(
-            "PROPFIND", caldav_path, content=propfind_body, headers=headers
-        )
-        response.raise_for_status()
+        # Retry logic for CalDAV initialization issues
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = await self._client.request(
+                    "PROPFIND", caldav_path, content=propfind_body, headers=headers
+                )
+                response.raise_for_status()
+                break
+            except HTTPStatusError as e:
+                if e.response.status_code == 401 and attempt < max_retries - 1:
+                    logger.warning(
+                        f"CalDAV auth failed (attempt {attempt + 1}/{max_retries}), retrying in 2s..."
+                    )
+                    await asyncio.sleep(2)
+                    continue
+                raise
 
         # Parse XML response
         root = ET.fromstring(response.content)

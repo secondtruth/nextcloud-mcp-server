@@ -89,12 +89,19 @@ jobs:
             attempt=$((attempt + 1))
             if [ $attempt -ge $max_attempts ]; then
               echo "Calendar app not ready after $max_attempts attempts."
+              # Debug output
+              echo "Final calendar check response:"
+              curl -u admin:admin -v -X PROPFIND http://localhost:8080/remote.php/dav/calendars/admin
               exit 1
             fi
-            echo "Calendar app attempt $attempt/$max_attempts: Not ready, sleeping for 3 seconds..."
-            sleep 3
+            echo "Calendar app attempt $attempt/$max_attempts: Not ready, sleeping for 5 seconds..."
+            sleep 5
           done
           echo "Calendar app is ready."
+          
+          # Additional verification - wait longer for CalDAV to be fully ready
+          echo "Waiting additional 10 seconds for CalDAV service to stabilize..."
+          sleep 10
 
           echo "All required apps are installed and ready!"
 
