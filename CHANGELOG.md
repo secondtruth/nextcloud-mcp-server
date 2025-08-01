@@ -1,3 +1,10 @@
+## v0.6.1 (2025-08-01)
+
+### Fix
+
+- **calendar**: Fix iCalendar date vs datetime format
+- **calendar**: Remove try/except in calendar API
+
 ## v0.6.0 (2025-07-29)
 
 ### Feat
