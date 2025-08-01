@@ -1,16 +1,17 @@
 import logging
-from nextcloud_mcp_server.config import setup_logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from mcp.server.fastmcp import FastMCP, Context
-from nextcloud_mcp_server.client import NextcloudClient
-from collections.abc import AsyncIterator
 
+from mcp.server.fastmcp import Context, FastMCP
+
+from nextcloud_mcp_server.client import NextcloudClient
+from nextcloud_mcp_server.config import setup_logging
 from nextcloud_mcp_server.server import (
+    configure_calendar_tools,
     configure_notes_tools,
     configure_tables_tools,
     configure_webdav_tools,
-    configure_calendar_tools,
 )
 
 setup_logging()

@@ -1,10 +1,11 @@
 """WebDAV client for Nextcloud file operations."""
 
-import mimetypes
-from typing import Tuple, Dict, Any, Optional, List
 import logging
-from httpx import HTTPStatusError
+import mimetypes
 import xml.etree.ElementTree as ET
+from typing import Any, Dict, List, Optional, Tuple
+
+from httpx import HTTPStatusError
 
 from .base import BaseNextcloudClient
 

@@ -1,6 +1,6 @@
 """Controller for notes search functionality."""
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class NotesSearchController:

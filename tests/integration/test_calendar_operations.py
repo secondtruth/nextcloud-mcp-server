@@ -1,9 +1,10 @@
 """Integration tests for Calendar CalDAV operations."""
 
-import pytest
 import logging
 import uuid
 from datetime import datetime, timedelta
+
+import pytest
 from httpx import HTTPStatusError
 
 from nextcloud_mcp_server.client import NextcloudClient

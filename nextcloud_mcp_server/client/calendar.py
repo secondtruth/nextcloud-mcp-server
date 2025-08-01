@@ -1,12 +1,15 @@
 """CalDAV client for NextCloud calendar operations."""
 
-import xml.etree.ElementTree as ET
 import datetime as dt
-from typing import Dict, Any, List, Optional, Tuple
 import logging
-from httpx import HTTPStatusError
-from icalendar import Calendar, Event as ICalEvent, vRecur, Alarm
 import uuid
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List, Optional, Tuple
+
+from httpx import HTTPStatusError
+from icalendar import Alarm, Calendar
+from icalendar import Event as ICalEvent
+from icalendar import vRecur
 
 from .base import BaseNextcloudClient
 

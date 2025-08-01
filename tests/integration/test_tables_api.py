@@ -1,9 +1,10 @@
-import pytest
-import logging
 import asyncio
+import logging
 import uuid
+from typing import Any, Dict
+
+import pytest
 from httpx import HTTPStatusError
-from typing import Dict, Any
 
 from nextcloud_mcp_server.client import NextcloudClient
 

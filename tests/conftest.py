@@ -1,18 +1,20 @@
-import pytest
-import os
 import logging
+import os
 import uuid
-from nextcloud_mcp_server.client import NextcloudClient
+from typing import Any, AsyncGenerator
+
+import pytest
 from httpx import HTTPStatusError
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
+from nextcloud_mcp_server.client import NextcloudClient
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session")
-async def nc_client() -> NextcloudClient:
+async def nc_client() -> AsyncGenerator[NextcloudClient, Any]:
     """
     Fixture to create a NextcloudClient instance for integration tests.
     Uses environment variables for configuration.
@@ -29,14 +31,16 @@ async def nc_client() -> NextcloudClient:
         logger.info(
             "NextcloudClient session fixture initialized and capabilities checked."
         )
+        yield client
     except Exception as e:
         logger.error(f"Failed to initialize NextcloudClient session fixture: {e}")
         pytest.fail(f"Failed to connect to Nextcloud or get capabilities: {e}")
-    return client
+    finally:
+        await client.close()
 
 
 @pytest.fixture
-async def nc_mcp_client():
+async def nc_mcp_client() -> AsyncGenerator[ClientSession, Any]:
     """
     Fixture to create an MCP client session for integration tests.
     """

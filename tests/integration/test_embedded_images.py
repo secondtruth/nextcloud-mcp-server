@@ -1,10 +1,11 @@
-import pytest
+import logging
 import time
 import uuid
-import logging
-from PIL import Image, ImageDraw
 from io import BytesIO
+
+import pytest
 from httpx import HTTPStatusError  # Import if needed for specific error checks
+from PIL import Image, ImageDraw
 
 from nextcloud_mcp_server.client import NextcloudClient
 

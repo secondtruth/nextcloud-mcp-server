@@ -1,18 +1,13 @@
-import os
-from httpx import (
-    AsyncClient,
-    Auth,
-    BasicAuth,
-    Request,
-    Response,
-)
 import logging
+import os
 
-from .notes import NotesClient
-from .webdav import WebDAVClient
-from .tables import TablesClient
-from .calendar import CalendarClient
+from httpx import AsyncClient, Auth, BasicAuth, Request, Response
+
 from ..controllers.notes_search import NotesSearchController
+from .calendar import CalendarClient
+from .notes import NotesClient
+from .tables import TablesClient
+from .webdav import WebDAVClient
 
 logger = logging.getLogger(__name__)
 

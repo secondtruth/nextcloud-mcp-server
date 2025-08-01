@@ -1,7 +1,9 @@
-import logging
 import datetime as dt
+import logging
 from typing import Optional
-from mcp.server.fastmcp import FastMCP, Context
+
+from mcp.server.fastmcp import Context, FastMCP
+
 from nextcloud_mcp_server.client import NextcloudClient
 
 logger = logging.getLogger(__name__)

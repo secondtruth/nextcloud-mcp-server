@@ -1,7 +1,7 @@
 """Client for Nextcloud Tables app operations."""
 
-from typing import Dict, List, Any, Optional
 import logging
+from typing import Any, Dict, List, Optional
 
 from .base import BaseNextcloudClient
 
