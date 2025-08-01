@@ -126,6 +126,33 @@ def configure_calendar_tools(mcp: FastMCP):
         """
         client: NextcloudClient = ctx.request_context.lifespan_context.client
 
+        # Convert YYYY-MM-DD format dates to datetime objects
+        start_datetime = None
+        end_datetime = None
+
+        if start_date:
+            try:
+                start_datetime = dt.datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                # If parsing fails, try to parse as ISO format
+                try:
+                    start_datetime = dt.datetime.fromisoformat(start_date)
+                except ValueError:
+                    logger.warning(f"Invalid start_date format: {start_date}")
+
+        if end_date:
+            try:
+                # For end date, set to end of day (23:59:59)
+                end_datetime = dt.datetime.strptime(end_date, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59
+                )
+            except ValueError:
+                # If parsing fails, try to parse as ISO format
+                try:
+                    end_datetime = dt.datetime.fromisoformat(end_date)
+                except ValueError:
+                    logger.warning(f"Invalid end_date format: {end_date}")
+
         # Build filters dictionary
         filters = {}
         if min_attendees is not None:
@@ -144,8 +171,8 @@ def configure_calendar_tools(mcp: FastMCP):
         if search_all_calendars:
             # Search across all calendars with filters
             events = await client.calendar.search_events_across_calendars(
-                start_date=start_date,
-                end_date=end_date,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
                 filters=filters if filters else None,
             )
             return events[:limit]
@@ -153,8 +180,8 @@ def configure_calendar_tools(mcp: FastMCP):
             # Search in specific calendar
             events = await client.calendar.get_calendar_events(
                 calendar_name=calendar_name,
-                start_date=start_date,
-                end_date=end_date,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
                 limit=limit,
             )
 
@@ -302,7 +329,6 @@ def configure_calendar_tools(mcp: FastMCP):
         start_datetime = f"{date}T{time}:00"
 
         # Calculate end_datetime
-
         start_dt = dt.datetime.fromisoformat(start_datetime)
         end_dt = start_dt + dt.timedelta(minutes=duration_minutes)
         end_datetime = end_dt.isoformat()
@@ -334,17 +360,14 @@ def configure_calendar_tools(mcp: FastMCP):
         client: NextcloudClient = ctx.request_context.lifespan_context.client
 
         now = dt.datetime.now()
-        end_date = now + dt.timedelta(days=days_ahead)
-
-        start_date_str = now.strftime("%Y%m%dT%H%M%SZ")
-        end_date_str = end_date.strftime("%Y%m%dT%H%M%SZ")
+        end_datetime = now + dt.timedelta(days=days_ahead)
 
         if calendar_name:
             # Get events from specific calendar
             return await client.calendar.get_calendar_events(
                 calendar_name=calendar_name,
-                start_date=start_date_str,
-                end_date=end_date_str,
+                start_datetime=now,
+                end_datetime=end_datetime,
                 limit=limit,
             )
         else:
@@ -356,8 +379,8 @@ def configure_calendar_tools(mcp: FastMCP):
                 try:
                     events = await client.calendar.get_calendar_events(
                         calendar_name=calendar["name"],
-                        start_date=start_date_str,
-                        end_date=end_date_str,
+                        start_datetime=now,
+                        end_datetime=end_datetime,
                         limit=limit,
                     )
                     # Add calendar info to each event
@@ -421,6 +444,24 @@ def configure_calendar_tools(mcp: FastMCP):
                 if time_range.strip()
             ]
 
+        # Convert date strings to datetime objects
+        start_datetime = None
+        end_datetime = None
+
+        if date_range_start:
+            try:
+                start_datetime = dt.datetime.strptime(date_range_start, "%Y-%m-%d")
+            except ValueError:
+                logger.warning(f"Invalid date_range_start format: {date_range_start}")
+
+        if date_range_end:
+            try:
+                end_datetime = dt.datetime.strptime(date_range_end, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59
+                )
+            except ValueError:
+                logger.warning(f"Invalid date_range_end format: {date_range_end}")
+
         # Build constraints
         constraints = {
             "business_hours_only": business_hours_only,
@@ -431,8 +472,8 @@ def configure_calendar_tools(mcp: FastMCP):
         return await client.calendar.find_availability(
             duration_minutes=duration_minutes,
             attendees=attendee_list,
-            date_range_start=date_range_start,
-            date_range_end=date_range_end,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
             constraints=constraints,
         )
 
@@ -491,6 +532,24 @@ def configure_calendar_tools(mcp: FastMCP):
         if operation not in ["update", "delete", "move"]:
             raise ValueError("Operation must be 'update', 'delete', or 'move'")
 
+        # Convert date strings to datetime objects
+        start_datetime = None
+        end_datetime = None
+
+        if start_date:
+            try:
+                start_datetime = dt.datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                logger.warning(f"Invalid start_date format: {start_date}")
+
+        if end_date:
+            try:
+                end_datetime = dt.datetime.strptime(end_date, "%Y-%m-%d").replace(
+                    hour=23, minute=59, second=59
+                )
+            except ValueError:
+                logger.warning(f"Invalid end_date format: {end_date}")
+
         # Build filter criteria
         filter_criteria = {}
         if title_contains is not None:
@@ -503,6 +562,7 @@ def configure_calendar_tools(mcp: FastMCP):
             filter_criteria["status"] = status
         if location_contains is not None:
             filter_criteria["location_contains"] = location_contains
+        # Add datetime strings for client compatibility
         if start_date:
             filter_criteria["start_date"] = start_date
         if end_date:
@@ -513,8 +573,8 @@ def configure_calendar_tools(mcp: FastMCP):
             if calendar_name:
                 events = await client.calendar.get_calendar_events(
                     calendar_name=calendar_name,
-                    start_date=start_date,
-                    end_date=end_date,
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
                 )
                 if filter_criteria:
                     events = client.calendar._apply_event_filters(
@@ -522,7 +582,9 @@ def configure_calendar_tools(mcp: FastMCP):
                     )
             else:
                 events = await client.calendar.search_events_across_calendars(
-                    start_date=start_date, end_date=end_date, filters=filter_criteria
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                    filters=filter_criteria,
                 )
 
             deleted_count = 0
@@ -592,8 +654,8 @@ def configure_calendar_tools(mcp: FastMCP):
             if calendar_name:
                 events = await client.calendar.get_calendar_events(
                     calendar_name=calendar_name,
-                    start_date=start_date,
-                    end_date=end_date,
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
                 )
                 if filter_criteria:
                     events = client.calendar._apply_event_filters(
@@ -601,7 +663,9 @@ def configure_calendar_tools(mcp: FastMCP):
                     )
             else:
                 events = await client.calendar.search_events_across_calendars(
-                    start_date=start_date, end_date=end_date, filters=filter_criteria
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                    filters=filter_criteria,
                 )
 
             moved_count = 0

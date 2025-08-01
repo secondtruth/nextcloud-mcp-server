@@ -41,6 +41,17 @@ async def test_mcp_connectivity(nc_mcp_client: ClientSession):
         "nc_webdav_write_file",
         "nc_webdav_create_directory",
         "nc_webdav_delete_resource",
+        "nc_calendar_list_calendars",
+        "nc_calendar_create_event",
+        "nc_calendar_list_events",
+        "nc_calendar_get_event",
+        "nc_calendar_update_event",
+        "nc_calendar_delete_event",
+        "nc_calendar_create_meeting",
+        "nc_calendar_get_upcoming_events",
+        "nc_calendar_find_availability",
+        "nc_calendar_bulk_operations",
+        "nc_calendar_manage_calendar",
     ]
 
     for expected_tool in expected_tools:
@@ -395,3 +406,271 @@ async def test_mcp_resources_access(
     assert isinstance(direct_settings, dict)
 
     logger.info("Successfully verified MCP resources match direct API calls")
+
+
+async def test_mcp_calendar_workflow(
+    nc_mcp_client: ClientSession, nc_client: NextcloudClient
+):
+    """Test complete Calendar workflow via MCP tools with verification via NextcloudClient."""
+
+    unique_suffix = uuid.uuid4().hex[:8]
+    test_event_title = f"MCP Test Event {unique_suffix}"
+    test_location = f"MCP Test Location {unique_suffix}"
+
+    created_event = None
+    calendar_name = None
+
+    try:
+        # 1. List calendars via MCP
+        logger.info("Listing calendars via MCP")
+        calendars_result = await nc_mcp_client.call_tool(
+            "nc_calendar_list_calendars", {}
+        )
+
+        assert calendars_result.isError is False, (
+            f"MCP calendar listing failed: {calendars_result.content}"
+        )
+
+        calendars_data = json.loads(calendars_result.content[0].text)
+
+        # Debug output to understand the structure
+        logger.info(f"calendars_data type: {type(calendars_data)}")
+        logger.info(f"calendars_data content: {calendars_data}")
+
+        # Handle the case where MCP tool returns a single dict instead of a list
+        if isinstance(calendars_data, dict):
+            # Single calendar returned as dict instead of list
+            calendar_name = calendars_data["name"]
+        elif isinstance(calendars_data, list) and calendars_data:
+            # Normal case - list of calendars
+            calendar_name = calendars_data[0]["name"]
+        else:
+            pytest.skip("No calendars available for testing")
+        logger.info(f"Using calendar: {calendar_name}")
+
+        # 2. Create event via MCP
+        from datetime import datetime, timedelta
+
+        tomorrow = datetime.now() + timedelta(days=1)
+        start_datetime = tomorrow.strftime("%Y-%m-%dT14:00:00")
+        end_datetime = tomorrow.strftime("%Y-%m-%dT15:00:00")
+
+        event_data = {
+            "calendar_name": calendar_name,
+            "title": test_event_title,
+            "start_datetime": start_datetime,
+            "end_datetime": end_datetime,
+            "description": f"Test event created via MCP {unique_suffix}",
+            "location": test_location,
+            "categories": "testing,mcp",
+            "status": "CONFIRMED",
+            "priority": 5,
+        }
+
+        logger.info(f"Creating event via MCP: {test_event_title}")
+        create_result = await nc_mcp_client.call_tool(
+            "nc_calendar_create_event", event_data
+        )
+
+        assert create_result.isError is False, (
+            f"MCP event creation failed: {create_result.content}"
+        )
+
+        created_event_data = json.loads(create_result.content[0].text)
+        event_uid = created_event_data["uid"]
+        created_event = {"uid": event_uid, "calendar_name": calendar_name}
+
+        logger.info(f"Event created via MCP with UID: {event_uid}")
+
+        # 3. Verify creation via direct NextcloudClient
+        direct_event, _ = await nc_client.calendar.get_event(calendar_name, event_uid)
+        assert direct_event["title"] == test_event_title
+        assert direct_event["location"] == test_location
+        assert "testing" in direct_event.get("categories", "")
+
+        # 4. Get event via MCP
+        logger.info(f"Getting event via MCP: {event_uid}")
+        get_result = await nc_mcp_client.call_tool(
+            "nc_calendar_get_event",
+            {"calendar_name": calendar_name, "event_uid": event_uid},
+        )
+
+        assert get_result.isError is False, (
+            f"MCP event get failed: {get_result.content}"
+        )
+
+        get_event_data = json.loads(get_result.content[0].text)
+        assert get_event_data["title"] == test_event_title
+        assert get_event_data["location"] == test_location
+
+        # 5. **TEST nc_calendar_list_events - This is the main tool we're testing**
+        logger.info("Testing nc_calendar_list_events via MCP")
+
+        # Get today and next week for date range
+        today = datetime.now()
+        next_week = today + timedelta(days=7)
+        start_date = today.strftime("%Y-%m-%d")
+        end_date = next_week.strftime("%Y-%m-%d")
+
+        list_events_data = {
+            "calendar_name": calendar_name,
+            "start_date": start_date,
+            "end_date": end_date,
+            "limit": 50,
+            "location_contains": "MCP Test",
+            "title_contains": unique_suffix,
+        }
+
+        list_result = await nc_mcp_client.call_tool(
+            "nc_calendar_list_events", list_events_data
+        )
+
+        assert list_result.isError is False, (
+            f"MCP list events failed: {list_result.content}"
+        )
+
+        events_data = json.loads(list_result.content[0].text)
+
+        # Debug output to understand what nc_calendar_list_events returns
+        logger.info(f"list_events result type: {type(events_data)}")
+        logger.info(f"list_events result content: {events_data}")
+
+        # Handle single event returned as dict instead of list (same fix as calendars)
+        if isinstance(events_data, dict):
+            # Single event returned as dict instead of list
+            events_data = [events_data]
+
+        assert isinstance(events_data, list), "Expected events list"
+
+        # Our created event should be in the list
+        found_event = None
+        for event in events_data:
+            if event.get("uid") == event_uid:
+                found_event = event
+                break
+
+        assert found_event is not None, (
+            f"Created event {event_uid} not found in events list"
+        )
+        assert found_event["title"] == test_event_title
+
+        # 6. Test list events across all calendars
+        logger.info("Testing nc_calendar_list_events across all calendars")
+
+        all_calendars_data = {
+            "calendar_name": "",  # Will be ignored
+            "search_all_calendars": True,
+            "start_date": start_date,
+            "end_date": end_date,
+            "title_contains": unique_suffix,
+        }
+
+        all_list_result = await nc_mcp_client.call_tool(
+            "nc_calendar_list_events", all_calendars_data
+        )
+
+        assert all_list_result.isError is False, (
+            f"MCP list all events failed: {all_list_result.content}"
+        )
+
+        all_events_data = json.loads(all_list_result.content[0].text)
+
+        # Handle single event returned as dict instead of list (same fix as calendars)
+        if isinstance(all_events_data, dict):
+            # Single event returned as dict instead of list
+            all_events_data = [all_events_data]
+
+        assert isinstance(all_events_data, list), "Expected events list"
+
+        # Our event should still be found when searching all calendars
+        found_in_all = any(event.get("uid") == event_uid for event in all_events_data)
+        assert found_in_all, "Event not found when searching all calendars"
+
+        # 7. Update event via MCP
+        updated_title = f"Updated {test_event_title}"
+        updated_description = f"Updated description {unique_suffix}"
+
+        update_data = {
+            "calendar_name": calendar_name,
+            "event_uid": event_uid,
+            "title": updated_title,
+            "description": updated_description,
+            "priority": 1,
+        }
+
+        logger.info(f"Updating event via MCP: {event_uid}")
+        update_result = await nc_mcp_client.call_tool(
+            "nc_calendar_update_event", update_data
+        )
+
+        assert update_result.isError is False, (
+            f"MCP event update failed: {update_result.content}"
+        )
+
+        # 8. Verify update via direct NextcloudClient
+        updated_direct_event, _ = await nc_client.calendar.get_event(
+            calendar_name, event_uid
+        )
+        assert updated_direct_event["title"] == updated_title
+        assert updated_direct_event["description"] == updated_description
+        assert updated_direct_event["priority"] == 1
+
+        # 9. Test upcoming events via MCP
+        logger.info("Testing nc_calendar_get_upcoming_events via MCP")
+        upcoming_result = await nc_mcp_client.call_tool(
+            "nc_calendar_get_upcoming_events",
+            {"calendar_name": calendar_name, "days_ahead": 7, "limit": 10},
+        )
+
+        assert upcoming_result.isError is False, (
+            f"MCP upcoming events failed: {upcoming_result.content}"
+        )
+
+        upcoming_events = json.loads(upcoming_result.content[0].text)
+
+        # Handle single event returned as dict instead of list (same fix as other tools)
+        if isinstance(upcoming_events, dict):
+            # Single event returned as dict instead of list
+            upcoming_events = [upcoming_events]
+
+        assert isinstance(upcoming_events, list), "Expected upcoming events list"
+
+        # 10. Delete event via MCP
+        logger.info(f"Deleting event via MCP: {event_uid}")
+        delete_result = await nc_mcp_client.call_tool(
+            "nc_calendar_delete_event",
+            {"calendar_name": calendar_name, "event_uid": event_uid},
+        )
+
+        assert delete_result.isError is False, (
+            f"MCP event deletion failed: {delete_result.content}"
+        )
+
+        # 11. Verify deletion via direct NextcloudClient
+        try:
+            await nc_client.calendar.get_event(calendar_name, event_uid)
+            pytest.fail("Event should have been deleted but was still found")
+        except Exception:
+            # Expected - event should be deleted
+            logger.info(f"Successfully verified event {event_uid} was deleted")
+            created_event = None  # Mark as cleaned up
+
+    except Exception as e:
+        if "Calendar app may not be enabled" in str(
+            e
+        ) or "No calendars available" in str(e):
+            pytest.skip("Calendar functionality not available for testing")
+        raise
+
+    finally:
+        # Cleanup in case of test failure
+        if created_event is not None:
+            try:
+                await nc_client.calendar.delete_event(
+                    created_event["calendar_name"], created_event["uid"]
+                )
+                logger.info(
+                    f"Cleaned up event {created_event['uid']} after test failure"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to cleanup event: {e}")

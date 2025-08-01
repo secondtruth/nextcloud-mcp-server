@@ -118,8 +118,8 @@ class CalendarClient(BaseNextcloudClient):
     async def get_calendar_events(
         self,
         calendar_name: str,
-        start_date: str = "",
-        end_date: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """List events in a calendar within date range."""
@@ -127,9 +127,18 @@ class CalendarClient(BaseNextcloudClient):
 
         # Build time range filter if dates provided
         time_range_filter = ""
-        if start_date or end_date:
-            start_dt = start_date or "19700101T000000Z"
-            end_dt = end_date or "20301231T235959Z"
+        if start_datetime or end_datetime:
+            # Convert datetime objects to CalDAV format (YYYYMMDDTHHMMSSZ)
+            start_dt = (
+                start_datetime.strftime("%Y%m%dT%H%M%SZ")
+                if start_datetime
+                else "19700101T000000Z"
+            )
+            end_dt = (
+                end_datetime.strftime("%Y%m%dT%H%M%SZ")
+                if end_datetime
+                else "20301231T235959Z"
+            )
             time_range_filter = f"""
                 <c:time-range start="{start_dt}" end="{end_dt}"/>
             """
@@ -504,8 +513,8 @@ class CalendarClient(BaseNextcloudClient):
 
     async def search_events_across_calendars(
         self,
-        start_date: str = "",
-        end_date: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Search events across all calendars with advanced filtering."""
@@ -516,7 +525,7 @@ class CalendarClient(BaseNextcloudClient):
             for calendar in calendars:
                 try:
                     events = await self.get_calendar_events(
-                        calendar["name"], start_date, end_date
+                        calendar["name"], start_datetime, end_datetime
                     )
 
                     # Apply filters if provided
@@ -623,22 +632,21 @@ class CalendarClient(BaseNextcloudClient):
         self,
         duration_minutes: int,
         attendees: Optional[List[str]] = None,
-        date_range_start: str = "",
-        date_range_end: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         constraints: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Find available time slots for scheduling."""
         try:
             # Set default date range if not provided
-            if not date_range_start:
-                date_range_start = dt.datetime.now().strftime("%Y-%m-%d")
-            if not date_range_end:
-                end_date = dt.datetime.now() + dt.timedelta(days=7)
-                date_range_end = end_date.strftime("%Y-%m-%d")
+            if not start_datetime:
+                start_datetime = dt.datetime.now()
+            if not end_datetime:
+                end_datetime = dt.datetime.now() + dt.timedelta(days=7)
 
             # Get all events in the date range
             busy_events = await self.search_events_across_calendars(
-                start_date=date_range_start, end_date=date_range_end
+                start_datetime=start_datetime, end_datetime=end_datetime
             )
 
             # Filter events for relevant attendees if specified
@@ -662,8 +670,8 @@ class CalendarClient(BaseNextcloudClient):
             available_slots = self._generate_available_slots(
                 busy_events,
                 duration_minutes,
-                date_range_start,
-                date_range_end,
+                start_datetime,
+                end_datetime,
                 business_hours_only,
                 exclude_weekends,
                 preferred_times,
@@ -679,8 +687,8 @@ class CalendarClient(BaseNextcloudClient):
         self,
         busy_events: List[Dict[str, Any]],
         duration_minutes: int,
-        start_date: str,
-        end_date: str,
+        start_datetime: dt.datetime,
+        end_datetime: dt.datetime,
         business_hours_only: bool,
         exclude_weekends: bool,
         preferred_times: List[str],
@@ -689,8 +697,12 @@ class CalendarClient(BaseNextcloudClient):
         available_slots = []
 
         try:
-            current_date = dt.datetime.fromisoformat(start_date)
-            end_date_dt = dt.datetime.fromisoformat(end_date)
+            current_date = start_datetime.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            end_date_dt = end_datetime.replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
 
             while current_date <= end_date_dt:
                 # Skip weekends if requested
@@ -819,10 +831,20 @@ class CalendarClient(BaseNextcloudClient):
     ) -> Dict[str, Any]:
         """Bulk update events matching filter criteria."""
         try:
+            # Convert string dates to datetime objects if present
+            start_datetime = None
+            end_datetime = None
+            if "start_date" in filter_criteria and filter_criteria["start_date"]:
+                start_datetime = dt.datetime.fromisoformat(
+                    filter_criteria["start_date"]
+                )
+            if "end_date" in filter_criteria and filter_criteria["end_date"]:
+                end_datetime = dt.datetime.fromisoformat(filter_criteria["end_date"])
+
             # Find events matching criteria
             events = await self.search_events_across_calendars(
-                start_date=filter_criteria.get("start_date", ""),
-                end_date=filter_criteria.get("end_date", ""),
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
                 filters=filter_criteria,
             )
 
