@@ -21,12 +21,12 @@ LOGGING_CONFIG = {
         },
         "httpx": {
             "handlers": ["default"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": False,  # Prevent propagation to root logger
         },
         "httpcore": {
             "handlers": ["default"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": False,  # Prevent propagation to root logger
         },
     },

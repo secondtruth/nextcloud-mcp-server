@@ -1,9 +1,10 @@
 """Integration tests for Calendar CalDAV operations."""
 
-import pytest
 import logging
 import uuid
 from datetime import datetime, timedelta
+
+import pytest
 from httpx import HTTPStatusError
 
 from nextcloud_mcp_server.client import NextcloudClient
@@ -15,37 +16,62 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
+async def calendar_test_client():
+    """Create a new, isolated NextcloudClient for calendar tests."""
+    client = NextcloudClient.from_env()
+    try:
+        yield client
+    finally:
+        await client.close()
+
+
+@pytest.fixture
 def test_calendar_name():
     """Unique calendar name for testing."""
     return f"test_calendar_{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
-async def temporary_calendar(nc_client: NextcloudClient, test_calendar_name: str):
+async def temporary_calendar(
+    calendar_test_client: NextcloudClient, test_calendar_name: str
+):
     """Create a temporary calendar for testing and clean up afterward."""
     calendar_name = test_calendar_name
 
     try:
-        # Create a test calendar if possible
-        # Note: Calendar creation might require admin permissions
-        # For now, we'll use an existing calendar or create events in default calendar
+        # Create a test calendar
+        logger.info(f"Creating temporary calendar: {calendar_name}")
+        result = await calendar_test_client.calendar.create_calendar(
+            calendar_name=calendar_name,
+            display_name=f"Test Calendar {calendar_name}",
+            description="Temporary calendar for integration testing",
+            color="#FF5722",
+        )
 
-        # Try to find an existing calendar to use
-        calendars = await nc_client.calendar.list_calendars()
-        if calendars:
-            calendar_name = calendars[0]["name"]
-            logger.info(f"Using existing calendar: {calendar_name}")
-            yield calendar_name
-        else:
-            pytest.skip("No calendars available for testing")
+        if result["status_code"] not in [200, 201]:
+            pytest.skip(f"Failed to create temporary calendar: {result}")
+
+        logger.info(f"Created temporary calendar: {calendar_name}")
+        yield calendar_name
 
     except Exception as e:
         logger.error(f"Error setting up temporary calendar: {e}")
         pytest.skip(f"Calendar setup failed: {e}")
 
+    finally:
+        # Cleanup: Delete the temporary calendar
+        try:
+            logger.info(f"Cleaning up temporary calendar: {calendar_name}")
+            await calendar_test_client.calendar.delete_calendar(calendar_name)
+            logger.info(f"Successfully deleted temporary calendar: {calendar_name}")
+        except Exception as e:
+            logger.error(f"Error deleting temporary calendar {calendar_name}: {e}")
+
 
 @pytest.fixture
-async def temporary_event(nc_client: NextcloudClient, temporary_calendar: str):
+async def temporary_event(
+    calendar_test_client: NextcloudClient, temporary_calendar: str
+):
     """Create a temporary event for testing and clean up afterward."""
     event_uid = None
     calendar_name = temporary_calendar
@@ -65,7 +91,9 @@ async def temporary_event(nc_client: NextcloudClient, temporary_calendar: str):
 
     try:
         logger.info(f"Creating temporary event in calendar: {calendar_name}")
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         event_uid = result.get("uid")
 
         if not event_uid:
@@ -79,7 +107,9 @@ async def temporary_event(nc_client: NextcloudClient, temporary_calendar: str):
         if event_uid:
             try:
                 logger.info(f"Cleaning up temporary event: {event_uid}")
-                await nc_client.calendar.delete_event(calendar_name, event_uid)
+                await calendar_test_client.calendar.delete_event(
+                    calendar_name, event_uid
+                )
                 logger.info(f"Successfully deleted temporary event: {event_uid}")
             except HTTPStatusError as e:
                 if e.response.status_code != 404:
@@ -90,9 +120,9 @@ async def temporary_event(nc_client: NextcloudClient, temporary_calendar: str):
                 )
 
 
-async def test_list_calendars(nc_client: NextcloudClient):
+async def test_list_calendars(calendar_test_client: NextcloudClient):
     """Test listing available calendars."""
-    calendars = await nc_client.calendar.list_calendars()
+    calendars = await calendar_test_client.calendar.list_calendars()
 
     assert isinstance(calendars, list)
 
@@ -114,7 +144,7 @@ async def test_list_calendars(nc_client: NextcloudClient):
 
 
 async def test_create_and_delete_event(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test creating and deleting a basic event."""
     calendar_name = temporary_calendar
@@ -133,7 +163,9 @@ async def test_create_and_delete_event(
     }
 
     try:
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         assert "uid" in result
         assert result["status_code"] in [200, 201, 204]
 
@@ -141,7 +173,7 @@ async def test_create_and_delete_event(
         logger.info(f"Created event with UID: {event_uid}")
 
         # Verify event was created by retrieving it
-        retrieved_event, etag = await nc_client.calendar.get_event(
+        retrieved_event, etag = await calendar_test_client.calendar.get_event(
             calendar_name, event_uid
         )
         assert retrieved_event["uid"] == event_uid
@@ -149,7 +181,9 @@ async def test_create_and_delete_event(
         assert retrieved_event["location"] == "Test Room"
 
         # Delete event
-        delete_result = await nc_client.calendar.delete_event(calendar_name, event_uid)
+        delete_result = await calendar_test_client.calendar.delete_event(
+            calendar_name, event_uid
+        )
         assert delete_result["status_code"] in [200, 204, 404]
 
         logger.info(f"Successfully deleted event: {event_uid}")
@@ -160,7 +194,7 @@ async def test_create_and_delete_event(
 
 
 async def test_create_all_day_event(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test creating an all-day event."""
     calendar_name = temporary_calendar
@@ -175,19 +209,21 @@ async def test_create_all_day_event(
     }
 
     try:
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         event_uid = result["uid"]
         logger.info(f"Created all-day event with UID: {event_uid}")
 
         # Verify event
-        retrieved_event, _ = await nc_client.calendar.get_event(
+        retrieved_event, _ = await calendar_test_client.calendar.get_event(
             calendar_name, event_uid
         )
         assert retrieved_event["title"] == "All Day Test Event"
         assert retrieved_event.get("all_day") is True
 
         # Cleanup
-        await nc_client.calendar.delete_event(calendar_name, event_uid)
+        await calendar_test_client.calendar.delete_event(calendar_name, event_uid)
 
     except Exception as e:
         logger.error(f"All-day event test failed: {e}")
@@ -195,7 +231,7 @@ async def test_create_all_day_event(
 
 
 async def test_create_recurring_event(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test creating a recurring event."""
     calendar_name = temporary_calendar
@@ -212,35 +248,42 @@ async def test_create_recurring_event(
     }
 
     try:
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         event_uid = result["uid"]
         logger.info(f"Created recurring event with UID: {event_uid}")
 
         # Verify event
-        retrieved_event, _ = await nc_client.calendar.get_event(
+        retrieved_event, _ = await calendar_test_client.calendar.get_event(
             calendar_name, event_uid
         )
         assert retrieved_event["title"] == "Weekly Recurring Test"
         assert retrieved_event.get("recurring") is True
 
         # Cleanup
-        await nc_client.calendar.delete_event(calendar_name, event_uid)
+        await calendar_test_client.calendar.delete_event(calendar_name, event_uid)
 
     except Exception as e:
         logger.error(f"Recurring event test failed: {e}")
         raise
 
 
-async def test_list_events_in_range(nc_client: NextcloudClient, temporary_event: dict):
+async def test_list_events_in_range(
+    calendar_test_client: NextcloudClient, temporary_event: dict
+):
     """Test listing events within a date range."""
     calendar_name = temporary_event["calendar_name"]
 
     # Get events for the next week
-    start_date = datetime.now().strftime("%Y%m%dT000000Z")
-    end_date = (datetime.now() + timedelta(days=7)).strftime("%Y%m%dT235959Z")
+    start_datetime = datetime.now()
+    end_datetime = datetime.now() + timedelta(days=7)
 
-    events = await nc_client.calendar.get_calendar_events(
-        calendar_name=calendar_name, start_date=start_date, end_date=end_date, limit=50
+    events = await calendar_test_client.calendar.get_calendar_events(
+        calendar_name=calendar_name,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
+        limit=50,
     )
 
     assert isinstance(events, list)
@@ -257,7 +300,9 @@ async def test_list_events_in_range(nc_client: NextcloudClient, temporary_event:
         assert "start_datetime" in event
 
 
-async def test_update_event(nc_client: NextcloudClient, temporary_event: dict):
+async def test_update_event(
+    calendar_test_client: NextcloudClient, temporary_event: dict
+):
     """Test updating an existing event."""
     calendar_name = temporary_event["calendar_name"]
     event_uid = temporary_event["uid"]
@@ -271,13 +316,15 @@ async def test_update_event(nc_client: NextcloudClient, temporary_event: dict):
     }
 
     try:
-        result = await nc_client.calendar.update_event(
+        result = await calendar_test_client.calendar.update_event(
             calendar_name, event_uid, updated_data
         )
         assert result["uid"] == event_uid
 
         # Verify updates
-        updated_event, _ = await nc_client.calendar.get_event(calendar_name, event_uid)
+        updated_event, _ = await calendar_test_client.calendar.get_event(
+            calendar_name, event_uid
+        )
         assert updated_event["title"] == "Updated Test Event Title"
         assert updated_event["description"] == "Updated description for test event"
         assert updated_event["location"] == "Updated Location"
@@ -291,7 +338,7 @@ async def test_update_event(nc_client: NextcloudClient, temporary_event: dict):
 
 
 async def test_create_event_with_attendees(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test creating an event with attendees."""
     calendar_name = temporary_calendar
@@ -309,12 +356,14 @@ async def test_create_event_with_attendees(
     }
 
     try:
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         event_uid = result["uid"]
         logger.info(f"Created event with attendees, UID: {event_uid}")
 
         # Verify event
-        retrieved_event, _ = await nc_client.calendar.get_event(
+        retrieved_event, _ = await calendar_test_client.calendar.get_event(
             calendar_name, event_uid
         )
         assert retrieved_event["title"] == "Meeting with Attendees"
@@ -322,7 +371,7 @@ async def test_create_event_with_attendees(
         assert retrieved_event["status"] == "TENTATIVE"
 
         # Cleanup
-        await nc_client.calendar.delete_event(calendar_name, event_uid)
+        await calendar_test_client.calendar.delete_event(calendar_name, event_uid)
 
     except Exception as e:
         logger.error(f"Event with attendees test failed: {e}")
@@ -330,33 +379,33 @@ async def test_create_event_with_attendees(
 
 
 async def test_get_nonexistent_event(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test retrieving a non-existent event."""
     calendar_name = temporary_calendar
     fake_uid = f"nonexistent-{uuid.uuid4()}"
 
     with pytest.raises(HTTPStatusError) as exc_info:
-        await nc_client.calendar.get_event(calendar_name, fake_uid)
+        await calendar_test_client.calendar.get_event(calendar_name, fake_uid)
 
     assert exc_info.value.response.status_code == 404
     logger.info(f"Correctly got 404 for nonexistent event: {fake_uid}")
 
 
 async def test_delete_nonexistent_event(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test deleting a non-existent event."""
     calendar_name = temporary_calendar
     fake_uid = f"nonexistent-{uuid.uuid4()}"
 
-    result = await nc_client.calendar.delete_event(calendar_name, fake_uid)
+    result = await calendar_test_client.calendar.delete_event(calendar_name, fake_uid)
     assert result["status_code"] == 404
     logger.info(f"Correctly got 404 for deleting nonexistent event: {fake_uid}")
 
 
 async def test_event_with_url_and_categories(
-    nc_client: NextcloudClient, temporary_calendar: str
+    calendar_test_client: NextcloudClient, temporary_calendar: str
 ):
     """Test creating an event with URL and multiple categories."""
     calendar_name = temporary_calendar
@@ -374,12 +423,14 @@ async def test_event_with_url_and_categories(
     }
 
     try:
-        result = await nc_client.calendar.create_event(calendar_name, event_data)
+        result = await calendar_test_client.calendar.create_event(
+            calendar_name, event_data
+        )
         event_uid = result["uid"]
         logger.info(f"Created event with metadata, UID: {event_uid}")
 
         # Verify event
-        retrieved_event, _ = await nc_client.calendar.get_event(
+        retrieved_event, _ = await calendar_test_client.calendar.get_event(
             calendar_name, event_uid
         )
         assert retrieved_event["title"] == "Event with URL and Categories"
@@ -390,20 +441,22 @@ async def test_event_with_url_and_categories(
         assert retrieved_event.get("priority") == 2
 
         # Cleanup
-        await nc_client.calendar.delete_event(calendar_name, event_uid)
+        await calendar_test_client.calendar.delete_event(calendar_name, event_uid)
 
     except Exception as e:
         logger.error(f"Event with metadata test failed: {e}")
         raise
 
 
-async def test_calendar_operations_error_handling(nc_client: NextcloudClient):
+async def test_calendar_operations_error_handling(
+    calendar_test_client: NextcloudClient,
+):
     """Test error handling for calendar operations."""
 
     # Test with non-existent calendar
     fake_calendar = f"nonexistent_calendar_{uuid.uuid4().hex}"
 
     with pytest.raises(HTTPStatusError):
-        await nc_client.calendar.get_calendar_events(fake_calendar)
+        await calendar_test_client.calendar.get_calendar_events(fake_calendar)
 
     logger.info("Error handling tests completed successfully")

@@ -1,8 +1,9 @@
 """Integration tests for WebDAV operations."""
 
-import pytest
 import logging
 import uuid
+
+import pytest
 from httpx import HTTPStatusError
 
 from nextcloud_mcp_server.client import NextcloudClient

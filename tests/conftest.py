@@ -1,18 +1,20 @@
-import pytest
-import os
 import logging
+import os
 import uuid
-from nextcloud_mcp_server.client import NextcloudClient
+from typing import Any, AsyncGenerator
+
+import pytest
 from httpx import HTTPStatusError
-import asyncio
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+
+from nextcloud_mcp_server.client import NextcloudClient
 
 logger = logging.getLogger(__name__)
 
-# pytestmark = pytest.mark.asyncio(loop_scope="package")
-
 
 @pytest.fixture(scope="session")
-async def nc_client() -> NextcloudClient:
+async def nc_client() -> AsyncGenerator[NextcloudClient, Any]:
     """
     Fixture to create a NextcloudClient instance for integration tests.
     Uses environment variables for configuration.
@@ -29,10 +31,54 @@ async def nc_client() -> NextcloudClient:
         logger.info(
             "NextcloudClient session fixture initialized and capabilities checked."
         )
+        yield client
     except Exception as e:
         logger.error(f"Failed to initialize NextcloudClient session fixture: {e}")
         pytest.fail(f"Failed to connect to Nextcloud or get capabilities: {e}")
-    return client
+    finally:
+        await client.close()
+
+
+@pytest.fixture
+async def nc_mcp_client() -> AsyncGenerator[ClientSession, Any]:
+    """
+    Fixture to create an MCP client session for integration tests.
+    """
+    logger.info("Creating SSE client")
+    sse_context = sse_client(url="http://127.0.0.1:8000/sse")
+    session_context = None
+
+    try:
+        read, write = await sse_context.__aenter__()
+        session_context = ClientSession(read, write)
+        session = await session_context.__aenter__()
+        await session.initialize()
+        logger.info("MCP client session initialized successfully")
+
+        yield session
+
+    finally:
+        # Clean up in reverse order, ignoring task scope issues
+        if session_context is not None:
+            try:
+                await session_context.__aexit__(None, None, None)
+            except RuntimeError as e:
+                if "cancel scope" in str(e):
+                    logger.debug(f"Ignoring cancel scope teardown issue: {e}")
+                else:
+                    logger.warning(f"Error closing session: {e}")
+            except Exception as e:
+                logger.warning(f"Error closing session: {e}")
+
+        try:
+            await sse_context.__aexit__(None, None, None)
+        except RuntimeError as e:
+            if "cancel scope" in str(e):
+                logger.debug(f"Ignoring cancel scope teardown issue: {e}")
+            else:
+                logger.warning(f"Error closing SSE client: {e}")
+        except Exception as e:
+            logger.warning(f"Error closing SSE client: {e}")
 
 
 @pytest.fixture
@@ -41,7 +87,6 @@ async def temporary_note(nc_client: NextcloudClient):
     Fixture to create a temporary note for a test and ensure its deletion afterward.
     Yields the created note dictionary.
     """
-    asyncio.new_event_loop()
 
     note_id = None
     unique_suffix = uuid.uuid4().hex[:8]
@@ -87,7 +132,6 @@ async def temporary_note_with_attachment(
     Yields a tuple: (note_data, attachment_filename, attachment_content).
     Depends on the temporary_note fixture.
     """
-    asyncio.new_event_loop()
 
     note_data = temporary_note
     note_id = note_data["id"]

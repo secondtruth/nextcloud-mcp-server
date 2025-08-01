@@ -1,13 +1,15 @@
 """CalDAV client for NextCloud calendar operations."""
 
-import xml.etree.ElementTree as ET
-from datetime import datetime, date
-from typing import Dict, Any, List, Optional, Tuple
+import datetime as dt
 import logging
-from httpx import HTTPStatusError
-from icalendar import Calendar, Event as ICalEvent, vRecur, Alarm
-from datetime import timedelta
 import uuid
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List, Optional, Tuple
+
+from httpx import HTTPStatusError
+from icalendar import Alarm, Calendar
+from icalendar import Event as ICalEvent
+from icalendar import vRecur
 
 from .base import BaseNextcloudClient
 
@@ -46,105 +48,80 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        try:
-            response = await self._client.request(
-                "PROPFIND", caldav_path, content=propfind_body, headers=headers
+        response = await self._make_request(
+            "PROPFIND", caldav_path, content=propfind_body, headers=headers
+        )
+
+        # Parse XML response
+        root = ET.fromstring(response.content)
+        calendars = []
+
+        for response_elem in root.findall(".//{DAV:}response"):
+            href = response_elem.find(".//{DAV:}href")
+            if href is None:
+                continue
+
+            href_text = href.text or ""
+            if not href_text.endswith("/"):
+                continue  # Skip non-calendar resources
+
+            # Extract calendar name from href
+            calendar_name = href_text.rstrip("/").split("/")[-1]
+            if not calendar_name or calendar_name == self.username:
+                continue
+
+            # Get properties
+            propstat = response_elem.find(".//{DAV:}propstat")
+            if propstat is None:
+                continue
+
+            prop = propstat.find(".//{DAV:}prop")
+            if prop is None:
+                continue
+
+            # Check if it's a calendar resource
+            resourcetype = prop.find(".//{DAV:}resourcetype")
+            is_calendar = (
+                resourcetype is not None
+                and resourcetype.find(".//{urn:ietf:params:xml:ns:caldav}calendar")
+                is not None
             )
-            response.raise_for_status()
 
-            # Parse XML response
-            root = ET.fromstring(response.content)
-            calendars = []
+            if not is_calendar:
+                continue
 
-            for response_elem in root.findall(".//{DAV:}response"):
-                href = response_elem.find(".//{DAV:}href")
-                if href is None:
-                    continue
+            # Extract calendar properties
+            displayname_elem = prop.find(".//{DAV:}displayname")
+            displayname = (
+                displayname_elem.text if displayname_elem is not None else calendar_name
+            )
 
-                href_text = href.text or ""
-                if not href_text.endswith("/"):
-                    continue  # Skip non-calendar resources
+            description_elem = prop.find(
+                ".//{urn:ietf:params:xml:ns:caldav}calendar-description"
+            )
+            description = description_elem.text if description_elem is not None else ""
 
-                # Extract calendar name from href
-                calendar_name = href_text.rstrip("/").split("/")[-1]
-                if not calendar_name or calendar_name == self.username:
-                    continue
+            color_elem = prop.find(".//{http://calendarserver.org/ns/}calendar-color")
+            color = color_elem.text if color_elem is not None else "#1976D2"
 
-                # Get properties
-                propstat = response_elem.find(".//{DAV:}propstat")
-                if propstat is None:
-                    continue
+            calendars.append(
+                {
+                    "name": calendar_name,
+                    "display_name": displayname,
+                    "description": description,
+                    "color": color,
+                    "href": href_text,
+                }
+            )
 
-                prop = propstat.find(".//{DAV:}prop")
-                if prop is None:
-                    continue
-
-                # Check if it's a calendar resource
-                resourcetype = prop.find(".//{DAV:}resourcetype")
-                is_calendar = (
-                    resourcetype is not None
-                    and resourcetype.find(".//{urn:ietf:params:xml:ns:caldav}calendar")
-                    is not None
-                )
-
-                if not is_calendar:
-                    continue
-
-                # Extract calendar properties
-                displayname_elem = prop.find(".//{DAV:}displayname")
-                displayname = (
-                    displayname_elem.text
-                    if displayname_elem is not None
-                    else calendar_name
-                )
-
-                description_elem = prop.find(
-                    ".//{urn:ietf:params:xml:ns:caldav}calendar-description"
-                )
-                description = (
-                    description_elem.text if description_elem is not None else ""
-                )
-
-                color_elem = prop.find(
-                    ".//{http://calendarserver.org/ns/}calendar-color"
-                )
-                color = color_elem.text if color_elem is not None else "#1976D2"
-
-                calendars.append(
-                    {
-                        "name": calendar_name,
-                        "display_name": displayname,
-                        "description": description,
-                        "color": color,
-                        "href": href_text,
-                    }
-                )
-
-            logger.debug(f"Found {len(calendars)} calendars")
-            return calendars
-
-        except HTTPStatusError as e:
-            if e.response.status_code == 401:
-                logger.warning(
-                    "Authentication failed for CalDAV - Calendar app may not be enabled for this user"
-                )
-                return []
-            elif e.response.status_code == 404:
-                logger.warning(
-                    "CalDAV endpoint not found - Calendar app may not be installed"
-                )
-                return []
-            logger.error(f"HTTP error listing calendars: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error listing calendars: {e}")
-            raise e
+        logger.debug(f"Found {len(calendars)} calendars")
+        return calendars
 
     async def get_calendar_events(
         self,
         calendar_name: str,
-        start_date: str = "",
-        end_date: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         limit: int = 50,
     ) -> List[Dict[str, Any]]:
         """List events in a calendar within date range."""
@@ -152,9 +129,18 @@ class CalendarClient(BaseNextcloudClient):
 
         # Build time range filter if dates provided
         time_range_filter = ""
-        if start_date or end_date:
-            start_dt = start_date or "19700101T000000Z"
-            end_dt = end_date or "20301231T235959Z"
+        if start_datetime or end_datetime:
+            # Convert datetime objects to CalDAV format (YYYYMMDDTHHMMSSZ)
+            start_dt = (
+                start_datetime.strftime("%Y%m%dT%H%M%SZ")
+                if start_datetime
+                else "19700101T000000Z"
+            )
+            end_dt = (
+                end_datetime.strftime("%Y%m%dT%H%M%SZ")
+                if end_datetime
+                else "20301231T235959Z"
+            )
             time_range_filter = f"""
                 <c:time-range start="{start_dt}" end="{end_dt}"/>
             """
@@ -180,55 +166,42 @@ class CalendarClient(BaseNextcloudClient):
             "Accept": "application/xml",
         }
 
-        try:
-            response = await self._client.request(
-                "REPORT", calendar_path, content=report_body, headers=headers
-            )
-            response.raise_for_status()
+        response = await self._make_request(
+            "REPORT", calendar_path, content=report_body, headers=headers
+        )
 
-            # Parse XML response and extract events
-            root = ET.fromstring(response.content)
-            events = []
+        # Parse XML response and extract events
+        root = ET.fromstring(response.content)
+        events = []
 
-            for response_elem in root.findall(".//{DAV:}response"):
-                href = response_elem.find(".//{DAV:}href")
-                if href is None:
-                    continue
+        for response_elem in root.findall(".//{DAV:}response"):
+            href = response_elem.find(".//{DAV:}href")
+            if href is None:
+                continue
 
-                propstat = response_elem.find(".//{DAV:}propstat")
-                if propstat is None:
-                    continue
+            propstat = response_elem.find(".//{DAV:}propstat")
+            if propstat is None:
+                continue
 
-                prop = propstat.find(".//{DAV:}prop")
-                if prop is None:
-                    continue
+            prop = propstat.find(".//{DAV:}prop")
+            if prop is None:
+                continue
 
-                calendar_data = prop.find(
-                    ".//{urn:ietf:params:xml:ns:caldav}calendar-data"
-                )
-                etag_elem = prop.find(".//{DAV:}getetag")
+            calendar_data = prop.find(".//{urn:ietf:params:xml:ns:caldav}calendar-data")
+            etag_elem = prop.find(".//{DAV:}getetag")
 
-                if calendar_data is not None and calendar_data.text:
-                    event_data = self._parse_ical_event(calendar_data.text)
-                    if event_data:
-                        event_data["href"] = href.text
-                        event_data["etag"] = (
-                            etag_elem.text if etag_elem is not None else ""
-                        )
-                        events.append(event_data)
+            if calendar_data is not None and calendar_data.text:
+                event_data = self._parse_ical_event(calendar_data.text)
+                if event_data:
+                    event_data["href"] = href.text
+                    event_data["etag"] = etag_elem.text if etag_elem is not None else ""
+                    events.append(event_data)
 
-                if len(events) >= limit:
-                    break
+            if len(events) >= limit:
+                break
 
-            logger.debug(f"Found {len(events)} events")
-            return events
-
-        except HTTPStatusError as e:
-            logger.error(f"HTTP error getting calendar events: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error getting calendar events: {e}")
-            raise e
+        logger.debug(f"Found {len(events)} events")
+        return events
 
     async def create_event(
         self, calendar_name: str, event_data: Dict[str, Any]
@@ -246,26 +219,17 @@ class CalendarClient(BaseNextcloudClient):
             "If-None-Match": "*",  # Ensure we're creating, not updating
         }
 
-        try:
-            response = await self._client.put(
-                event_path, content=ical_content, headers=headers
-            )
-            response.raise_for_status()
+        response = await self._make_request(
+            "PUT", event_path, content=ical_content, headers=headers
+        )
 
-            logger.debug(f"Created event {event_uid}")
-            return {
-                "uid": event_uid,
-                "href": event_path,
-                "etag": response.headers.get("etag", ""),
-                "status_code": response.status_code,
-            }
-
-        except HTTPStatusError as e:
-            logger.error(f"HTTP error creating event: {e}")
-            raise e
-        except Exception as e:
-            logger.error(f"Unexpected error creating event: {e}")
-            raise e
+        logger.debug(f"Created event {event_uid}")
+        return {
+            "uid": event_uid,
+            "href": event_path,
+            "etag": response.headers.get("etag", ""),
+            "status_code": response.status_code,
+        }
 
     async def update_event(
         self,
@@ -303,10 +267,9 @@ class CalendarClient(BaseNextcloudClient):
             headers["If-Match"] = etag
 
         try:
-            response = await self._client.put(
-                event_path, content=ical_content, headers=headers
+            response = await self._make_request(
+                "PUT", event_path, content=ical_content, headers=headers
             )
-            response.raise_for_status()
 
             logger.debug(f"Updated event {event_uid}")
             return {
@@ -329,8 +292,7 @@ class CalendarClient(BaseNextcloudClient):
         event_path = f"{self._get_caldav_base_path()}/{calendar_name}/{event_filename}"
 
         try:
-            response = await self._client.delete(event_path)
-            response.raise_for_status()
+            response = await self._make_request("DELETE", event_path)
 
             logger.debug(f"Deleted event {event_uid}")
             return {"status_code": response.status_code}
@@ -355,8 +317,7 @@ class CalendarClient(BaseNextcloudClient):
         headers = {"Accept": "text/calendar"}
 
         try:
-            response = await self._client.get(event_path, headers=headers)
-            response.raise_for_status()
+            response = await self._make_request("GET", event_path, headers=headers)
 
             etag = response.headers.get("etag", "")
             event_data = self._parse_ical_event(response.text)
@@ -396,16 +357,16 @@ class CalendarClient(BaseNextcloudClient):
 
         if start_str:  # Only parse if start_datetime is provided
             if all_day:
-                start_date = datetime.fromisoformat(start_str.split("T")[0]).date()
+                start_date = dt.datetime.fromisoformat(start_str.split("T")[0]).date()
                 event.add("dtstart", start_date)
                 if end_str:
-                    end_date = datetime.fromisoformat(end_str.split("T")[0]).date()
+                    end_date = dt.datetime.fromisoformat(end_str.split("T")[0]).date()
                     event.add("dtend", end_date)
             else:
-                start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                start_dt = dt.datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                 event.add("dtstart", start_dt)
                 if end_str:
-                    end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                    end_dt = dt.datetime.fromisoformat(end_str.replace("Z", "+00:00"))
                     event.add("dtend", end_dt)
 
         # Add categories
@@ -442,7 +403,7 @@ class CalendarClient(BaseNextcloudClient):
             alarm = Alarm()
             alarm.add("action", "DISPLAY")
             alarm.add("description", "Event reminder")
-            alarm.add("trigger", timedelta(minutes=-reminder_minutes))
+            alarm.add("trigger", dt.timedelta(minutes=-reminder_minutes))
             event.add_component(alarm)
 
         # Add attendees
@@ -453,7 +414,7 @@ class CalendarClient(BaseNextcloudClient):
                     event.add("attendee", f"mailto:{email.strip()}")
 
         # Add timestamps
-        now = datetime.utcnow()
+        now = dt.datetime.now(dt.UTC)
         event.add("created", now)
         event.add("dtstamp", now)
         event.add("last-modified", now)
@@ -481,8 +442,8 @@ class CalendarClient(BaseNextcloudClient):
                     # Handle dates
                     dtstart = component.get("dtstart")
                     if dtstart:
-                        if isinstance(dtstart.dt, date) and not isinstance(
-                            dtstart.dt, datetime
+                        if isinstance(dtstart.dt, dt.date) and not isinstance(
+                            dtstart.dt, dt.datetime
                         ):
                             event_data["start_datetime"] = dtstart.dt.isoformat()
                             event_data["all_day"] = True
@@ -492,8 +453,8 @@ class CalendarClient(BaseNextcloudClient):
 
                     dtend = component.get("dtend")
                     if dtend:
-                        if isinstance(dtend.dt, date) and not isinstance(
-                            dtend.dt, datetime
+                        if isinstance(dtend.dt, dt.date) and not isinstance(
+                            dtend.dt, dt.datetime
                         ):
                             event_data["end_datetime"] = dtend.dt.isoformat()
                         else:
@@ -554,8 +515,8 @@ class CalendarClient(BaseNextcloudClient):
 
     async def search_events_across_calendars(
         self,
-        start_date: str = "",
-        end_date: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Search events across all calendars with advanced filtering."""
@@ -566,7 +527,7 @@ class CalendarClient(BaseNextcloudClient):
             for calendar in calendars:
                 try:
                     events = await self.get_calendar_events(
-                        calendar["name"], start_date, end_date
+                        calendar["name"], start_datetime, end_datetime
                     )
 
                     # Apply filters if provided
@@ -625,10 +586,12 @@ class CalendarClient(BaseNextcloudClient):
                 end_str = event.get("end_datetime", "")
                 if start_str and end_str:
                     try:
-                        start_dt = datetime.fromisoformat(
+                        start_dt = dt.datetime.fromisoformat(
                             start_str.replace("Z", "+00:00")
                         )
-                        end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                        end_dt = dt.datetime.fromisoformat(
+                            end_str.replace("Z", "+00:00")
+                        )
                         duration_minutes = (end_dt - start_dt).total_seconds() / 60
                         if duration_minutes < filters["min_duration_minutes"]:
                             return False
@@ -671,22 +634,21 @@ class CalendarClient(BaseNextcloudClient):
         self,
         duration_minutes: int,
         attendees: Optional[List[str]] = None,
-        date_range_start: str = "",
-        date_range_end: str = "",
+        start_datetime: Optional[dt.datetime] = None,
+        end_datetime: Optional[dt.datetime] = None,
         constraints: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """Find available time slots for scheduling."""
         try:
             # Set default date range if not provided
-            if not date_range_start:
-                date_range_start = datetime.now().strftime("%Y-%m-%d")
-            if not date_range_end:
-                end_date = datetime.now() + timedelta(days=7)
-                date_range_end = end_date.strftime("%Y-%m-%d")
+            if not start_datetime:
+                start_datetime = dt.datetime.now()
+            if not end_datetime:
+                end_datetime = dt.datetime.now() + dt.timedelta(days=7)
 
             # Get all events in the date range
             busy_events = await self.search_events_across_calendars(
-                start_date=date_range_start, end_date=date_range_end
+                start_datetime=start_datetime, end_datetime=end_datetime
             )
 
             # Filter events for relevant attendees if specified
@@ -710,8 +672,8 @@ class CalendarClient(BaseNextcloudClient):
             available_slots = self._generate_available_slots(
                 busy_events,
                 duration_minutes,
-                date_range_start,
-                date_range_end,
+                start_datetime,
+                end_datetime,
                 business_hours_only,
                 exclude_weekends,
                 preferred_times,
@@ -727,8 +689,8 @@ class CalendarClient(BaseNextcloudClient):
         self,
         busy_events: List[Dict[str, Any]],
         duration_minutes: int,
-        start_date: str,
-        end_date: str,
+        start_datetime: dt.datetime,
+        end_datetime: dt.datetime,
         business_hours_only: bool,
         exclude_weekends: bool,
         preferred_times: List[str],
@@ -737,13 +699,17 @@ class CalendarClient(BaseNextcloudClient):
         available_slots = []
 
         try:
-            current_date = datetime.fromisoformat(start_date)
-            end_date_dt = datetime.fromisoformat(end_date)
+            current_date = start_datetime.replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            end_date_dt = end_datetime.replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
 
             while current_date <= end_date_dt:
                 # Skip weekends if requested
                 if exclude_weekends and current_date.weekday() >= 5:
-                    current_date += timedelta(days=1)
+                    current_date += dt.timedelta(days=1)
                     continue
 
                 # Generate slots for this day
@@ -756,7 +722,7 @@ class CalendarClient(BaseNextcloudClient):
                 )
                 available_slots.extend(day_slots)
 
-                current_date += timedelta(days=1)
+                current_date += dt.timedelta(days=1)
 
             return available_slots[:10]  # Limit to 10 slots
 
@@ -766,7 +732,7 @@ class CalendarClient(BaseNextcloudClient):
 
     def _generate_day_slots(
         self,
-        date: datetime,
+        date: dt.datetime,
         busy_events: List[Dict[str, Any]],
         duration_minutes: int,
         business_hours_only: bool,
@@ -786,10 +752,10 @@ class CalendarClient(BaseNextcloudClient):
             day_busy_periods = []
             for event in busy_events:
                 try:
-                    event_start = datetime.fromisoformat(
+                    event_start = dt.datetime.fromisoformat(
                         event["start_datetime"].replace("Z", "+00:00")
                     )
-                    event_end = datetime.fromisoformat(
+                    event_end = dt.datetime.fromisoformat(
                         event["end_datetime"].replace("Z", "+00:00")
                     )
 
@@ -807,7 +773,7 @@ class CalendarClient(BaseNextcloudClient):
                 hour=start_hour, minute=0, second=0, microsecond=0
             )
             end_time = date.replace(hour=end_hour, minute=0, second=0, microsecond=0)
-            slot_duration = timedelta(minutes=duration_minutes)
+            slot_duration = dt.timedelta(minutes=duration_minutes)
 
             while current_time + slot_duration <= end_time:
                 slot_end = current_time + slot_duration
@@ -829,7 +795,7 @@ class CalendarClient(BaseNextcloudClient):
                             }
                         )
 
-                current_time += timedelta(minutes=30)  # 30-minute increments
+                current_time += dt.timedelta(minutes=30)  # 30-minute increments
 
             return slots
 
@@ -852,8 +818,8 @@ class CalendarClient(BaseNextcloudClient):
         for time_range in preferred_times:
             try:
                 start_str, end_str = time_range.split("-")
-                pref_start = datetime.strptime(start_str, "%H:%M").time()
-                pref_end = datetime.strptime(end_str, "%H:%M").time()
+                pref_start = dt.datetime.strptime(start_str, "%H:%M").time()
+                pref_end = dt.datetime.strptime(end_str, "%H:%M").time()
 
                 if pref_start <= slot_start <= pref_end:
                     return True
@@ -867,10 +833,20 @@ class CalendarClient(BaseNextcloudClient):
     ) -> Dict[str, Any]:
         """Bulk update events matching filter criteria."""
         try:
+            # Convert string dates to datetime objects if present
+            start_datetime = None
+            end_datetime = None
+            if "start_date" in filter_criteria and filter_criteria["start_date"]:
+                start_datetime = dt.datetime.fromisoformat(
+                    filter_criteria["start_date"]
+                )
+            if "end_date" in filter_criteria and filter_criteria["end_date"]:
+                end_datetime = dt.datetime.fromisoformat(filter_criteria["end_date"])
+
             # Find events matching criteria
             events = await self.search_events_across_calendars(
-                start_date=filter_criteria.get("start_date", ""),
-                end_date=filter_criteria.get("end_date", ""),
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
                 filters=filter_criteria,
             )
 
@@ -943,10 +919,9 @@ class CalendarClient(BaseNextcloudClient):
 
             headers = {"Content-Type": "application/xml", "Depth": "0"}
 
-            response = await self._client.request(
+            response = await self._make_request(
                 "MKCALENDAR", calendar_path, content=mkcol_body, headers=headers
             )
-            response.raise_for_status()
 
             logger.debug(f"Created calendar: {calendar_name}")
             return {
@@ -966,8 +941,7 @@ class CalendarClient(BaseNextcloudClient):
         try:
             calendar_path = f"{self._get_caldav_base_path()}/{calendar_name}/"
 
-            response = await self._client.delete(calendar_path)
-            response.raise_for_status()
+            response = await self._make_request("DELETE", calendar_path)
 
             logger.debug(f"Deleted calendar: {calendar_name}")
             return {"status_code": response.status_code}
