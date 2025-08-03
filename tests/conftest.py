@@ -13,7 +13,7 @@ from nextcloud_mcp_server.client import NextcloudClient
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 async def nc_client() -> AsyncGenerator[NextcloudClient, Any]:
     """
     Fixture to create a NextcloudClient instance for integration tests.
@@ -170,3 +170,83 @@ async def temporary_note_with_attachment(
 
     # Note: The temporary_note fixture's finally block will handle note deletion,
     # which should also trigger the WebDAV directory deletion attempt.
+
+
+@pytest.fixture(scope="module")
+async def temporary_addressbook(nc_client: NextcloudClient):
+    """
+    Fixture to create a temporary addressbook for a test and ensure its deletion afterward.
+    Yields the created addressbook dictionary.
+    """
+    addressbook_name = f"test-addressbook-{uuid.uuid4().hex[:8]}"
+    logger.info(f"Creating temporary addressbook: {addressbook_name}")
+    try:
+        await nc_client.contacts.create_addressbook(
+            name=addressbook_name, display_name=f"Test Addressbook {addressbook_name}"
+        )
+        logger.info(f"Temporary addressbook created: {addressbook_name}")
+        yield addressbook_name
+    finally:
+        logger.info(f"Cleaning up temporary addressbook: {addressbook_name}")
+        try:
+            await nc_client.contacts.delete_addressbook(name=addressbook_name)
+            logger.info(
+                f"Successfully deleted temporary addressbook: {addressbook_name}"
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code != 404:
+                logger.error(
+                    f"HTTP error deleting temporary addressbook {addressbook_name}: {e}"
+                )
+            else:
+                logger.warning(
+                    f"Temporary addressbook {addressbook_name} already deleted (404)."
+                )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting temporary addressbook {addressbook_name}: {e}"
+            )
+
+
+@pytest.fixture
+async def temporary_contact(nc_client: NextcloudClient, temporary_addressbook: str):
+    """
+    Fixture to create a temporary contact in a temporary addressbook and ensure its deletion.
+    Yields the created contact's UID.
+    """
+    contact_uid = f"test-contact-{uuid.uuid4().hex[:8]}"
+    addressbook_name = temporary_addressbook
+    contact_data = {
+        "fn": "John Doe",
+        "email": "john.doe@example.com",
+        "tel": "1234567890",
+    }
+    logger.info(f"Creating temporary contact in addressbook: {addressbook_name}")
+    try:
+        await nc_client.contacts.create_contact(
+            addressbook=addressbook_name,
+            uid=contact_uid,
+            contact_data=contact_data,
+        )
+        logger.info(f"Temporary contact created with UID: {contact_uid}")
+        yield contact_uid
+    finally:
+        logger.info(f"Cleaning up temporary contact: {contact_uid}")
+        try:
+            await nc_client.contacts.delete_contact(
+                addressbook=addressbook_name, uid=contact_uid
+            )
+            logger.info(f"Successfully deleted temporary contact: {contact_uid}")
+        except HTTPStatusError as e:
+            if e.response.status_code != 404:
+                logger.error(
+                    f"HTTP error deleting temporary contact {contact_uid}: {e}"
+                )
+            else:
+                logger.warning(
+                    f"Temporary contact {contact_uid} already deleted (404)."
+                )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting temporary contact {contact_uid}: {e}"
+            )

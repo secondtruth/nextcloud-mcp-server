@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 async def sample_table_info(nc_client: NextcloudClient) -> Dict[str, Any]:
     """
     Fixture to get information about the sample table that comes with Nextcloud Tables.

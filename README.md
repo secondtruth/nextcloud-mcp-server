@@ -16,6 +16,7 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | **Calendar** | ✅ Full Support | Complete calendar integration - create, update, delete events. Support for recurring events, reminders, attendees, and all-day events via CalDAV. |
 | **Tables** | ⚠️ Row Operations | Read table schemas and perform CRUD operations on table rows. Table management not yet supported. |
 | **Files (WebDAV)** | ✅ Full Support | Complete file system access - browse directories, read/write files, create/delete resources. |
+| **Contacts** | ✅ Full Support | Create, read, update, and delete contacts and address books via CardDAV. |
 
 ## Available Tools
 
@@ -45,6 +46,17 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | `nc_calendar_find_availability` | **New:** Intelligent availability finder - find free time slots for meetings with attendee conflict detection |
 | `nc_calendar_bulk_operations` | **New:** Bulk update, delete, or move events matching filter criteria |
 | `nc_calendar_manage_calendar` | **New:** Create, delete, and manage calendar properties |
+
+### Contacts Tools
+
+| Tool | Description |
+|------|-------------|
+| `nc_contacts_list_addressbooks` | List all available addressbooks for the user |
+| `nc_contacts_list_contacts` | List all contacts in a specific addressbook |
+| `nc_contacts_create_addressbook` | Create a new addressbook |
+| `nc_contacts_delete_addressbook` | Delete an addressbook |
+| `nc_contacts_create_contact` | Create a new contact in an addressbook |
+| `nc_contacts_delete_contact` | Delete a contact from an addressbook |
 
 ### Tables Tools
 
