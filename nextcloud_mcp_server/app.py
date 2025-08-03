@@ -12,6 +12,7 @@ from nextcloud_mcp_server.server import (
     configure_notes_tools,
     configure_tables_tools,
     configure_webdav_tools,
+    configure_contacts_tools,
 )
 
 setup_logging()
@@ -56,6 +57,7 @@ configure_notes_tools(mcp)
 configure_tables_tools(mcp)
 configure_webdav_tools(mcp)
 configure_calendar_tools(mcp)
+configure_contacts_tools(mcp)
 
 
 def run():

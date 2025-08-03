@@ -5,6 +5,7 @@ from httpx import AsyncClient, Auth, BasicAuth, Request, Response
 
 from ..controllers.notes_search import NotesSearchController
 from .calendar import CalendarClient
+from .contacts import ContactsClient
 from .notes import NotesClient
 from .tables import TablesClient
 from .webdav import WebDAVClient
@@ -43,6 +44,7 @@ class NextcloudClient:
         self.webdav = WebDAVClient(self._client, username)
         self.tables = TablesClient(self._client, username)
         self.calendar = CalendarClient(self._client, username)
+        self.contacts = ContactsClient(self._client, username)
 
         # Initialize controllers
         self._notes_search = NotesSearchController()
