@@ -9,10 +9,10 @@ from nextcloud_mcp_server.client import NextcloudClient
 from nextcloud_mcp_server.config import setup_logging
 from nextcloud_mcp_server.server import (
     configure_calendar_tools,
+    configure_contacts_tools,
     configure_notes_tools,
     configure_tables_tools,
     configure_webdav_tools,
-    configure_contacts_tools,
 )
 
 setup_logging()

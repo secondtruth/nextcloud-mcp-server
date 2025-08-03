@@ -87,6 +87,62 @@ class ContactsClient(BaseNextcloudClient):
         logger.debug(f"Found {len(addressbooks)} addressbooks")
         return addressbooks
 
+    async def create_addressbook(self, *, name: str, display_name: str):
+        """Create a new addressbook."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{name}/"
+
+        prop_body = f"""<?xml version="1.0" encoding="utf-8"?>
+        <d:mkcol xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:carddav">
+            <d:set>
+                <d:prop>
+                    <d:resourcetype>
+                        <d:collection/>
+                        <c:addressbook/>
+                    </d:resourcetype>
+                    <d:displayname>{display_name}</d:displayname>
+                </d:prop>
+            </d:set>
+        </d:mkcol>"""
+
+        headers = {
+            "Content-Type": "application/xml",
+        }
+
+        await self._make_request("MKCOL", url, content=prop_body, headers=headers)
+
+    async def delete_addressbook(self, *, name: str):
+        """Delete an addressbook."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{name}/"
+        await self._make_request("DELETE", url)
+
+    async def create_contact(self, *, addressbook: str, uid: str, contact_data: dict):
+        """Create a new contact."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{addressbook}/{uid}.vcf"
+
+        contact = Contact(fn=contact_data.get("fn"), uid=uid)
+        if "email" in contact_data:
+            contact.email = [{"value": contact_data["email"], "type": ["HOME"]}]
+        if "tel" in contact_data:
+            contact.tel = [{"value": contact_data["tel"], "type": ["HOME"]}]
+
+        vcard = contact.to_vcard()
+
+        headers = {
+            "Content-Type": "text/vcard; charset=utf-8",
+            "If-None-Match": "*",
+        }
+
+        await self._make_request("PUT", url, content=vcard, headers=headers)
+
+    async def delete_contact(self, *, addressbook: str, uid: str):
+        """Delete a contact."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{addressbook}/{uid}.vcf"
+        await self._make_request("DELETE", url)
+
     async def list_contacts(self, *, addressbook: str):
         """List all available contacts for addressbook."""
 
@@ -135,6 +191,7 @@ class ContactsClient(BaseNextcloudClient):
             if not vcard_id:
                 logger.info("Skip missing vcard_id")
                 continue
+            vcard_id = vcard_id.replace(".vcf", "")
 
             # Get properties
             propstat = response_elem.find(".//d:propstat", ns)
@@ -162,6 +219,7 @@ class ContactsClient(BaseNextcloudClient):
 
             contacts.append(
                 {
+                    "vcard_id": vcard_id,
                     "getetag": getetag,
                     "contact": {
                         "fullname": contact.fn,
