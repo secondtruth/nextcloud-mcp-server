@@ -13,7 +13,7 @@ from nextcloud_mcp_server.client import NextcloudClient
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 async def nc_client() -> AsyncGenerator[NextcloudClient, Any]:
     """
     Fixture to create a NextcloudClient instance for integration tests.
