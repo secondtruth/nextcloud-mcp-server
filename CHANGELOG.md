@@ -1,3 +1,9 @@
+## v0.7.0 (2025-08-03)
+
+### Feat
+
+- **contacts**: Initialize Contacts App
+
 ## v0.6.1 (2025-08-01)
 
 ### Fix
