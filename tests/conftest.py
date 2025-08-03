@@ -172,7 +172,7 @@ async def temporary_note_with_attachment(
     # which should also trigger the WebDAV directory deletion attempt.
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 async def temporary_addressbook(nc_client: NextcloudClient):
     """
     Fixture to create a temporary addressbook for a test and ensure its deletion afterward.

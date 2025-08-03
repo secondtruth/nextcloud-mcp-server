@@ -25,7 +25,12 @@ def configure_contacts_tools(mcp: FastMCP):
     async def nc_contacts_create_addressbook(
         ctx: Context, *, name: str, display_name: str
     ):
-        """Create a new addressbook."""
+        """Create a new addressbook.
+
+        Args:
+            name: The name of the addressbook.
+            display_name: The display name of the addressbook.
+        """
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.contacts.create_addressbook(
             name=name, display_name=display_name
@@ -41,7 +46,13 @@ def configure_contacts_tools(mcp: FastMCP):
     async def nc_contacts_create_contact(
         ctx: Context, *, addressbook: str, uid: str, contact_data: dict
     ):
-        """Create a new contact."""
+        """Create a new contact.
+
+        Args:
+            addressbook: The name of the addressbook to create the contact in.
+            uid: The unique ID for the contact.
+            contact_data: A dictionary with the contact's details, e.g. {"fn": "John Doe", "email": "john.doe@example.com"}.
+        """
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.contacts.create_contact(
             addressbook=addressbook, uid=uid, contact_data=contact_data
