@@ -1,3 +1,9 @@
+## v0.7.1 (2025-08-08)
+
+### Fix
+
+- **client**: Strip cookies from responses to avoid falsely raising CSRF errors
+
 ## v0.7.0 (2025-08-03)
 
 ### Feat
