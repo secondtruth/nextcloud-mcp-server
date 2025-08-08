@@ -3,9 +3,63 @@
 import logging
 from abc import ABC
 
-from httpx import AsyncClient
+from functools import wraps
+import time
+from httpx import HTTPStatusError, codes, RequestError, AsyncClient
 
 logger = logging.getLogger(__name__)
+
+
+def retry_on_429(func):
+    """This decorator handles the 429 response from REST APIs
+
+    The `func` is assumed to be a method that is similar to `httpx.Client.get`,
+    and returns an `httpx.Response` object. In the case of `Too Many Requests` HTTP
+    response, the function will wait for a couple of seconds and retry the request.
+    """
+
+    MAX_RETRIES = 5
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        retries = 0
+
+        while retries < MAX_RETRIES:
+            try:
+                # Make GET API call
+                retries += 1
+                response = await func(*args, **kwargs)
+                break
+
+            except HTTPStatusError as e:
+                # If we get a '429 Client Error: Too Many Requests'
+                # error we wait a couple of seconds and do a retry
+                if e.response.status_code == codes.TOO_MANY_REQUESTS:
+                    logger.warning(
+                        f"429 Client Error: Too Many Requests, Number of attempts: {retries}"
+                    )
+                    time.sleep(5)
+                else:
+                    logger.warning(
+                        f"HTTPStatusError {e.response.status_code}: {e}, Number of attempts: {retries}"
+                    )
+                    raise
+            except RequestError as e:
+                logger.warning(
+                    f"RequestError {e.request.url}: {e}, Number of attempts: {retries}"
+                )
+                raise
+
+        # If for loop ends without break statement
+        else:
+            logger.warning("All API call retries failed")
+            raise RuntimeError(
+                f"Maximum number of retries ({MAX_RETRIES}) exceeded without success"
+            )
+
+        return response
+
+    return wrapper
 
 
 class BaseNextcloudClient(ABC):
@@ -25,6 +79,7 @@ class BaseNextcloudClient(ABC):
         """Helper to get the base WebDAV path for the authenticated user."""
         return f"/remote.php/dav/files/{self.username}"
 
+    @retry_on_429
     async def _make_request(self, method: str, url: str, **kwargs):
         """Common request wrapper with logging and error handling.
 

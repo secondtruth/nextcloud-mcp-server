@@ -11,6 +11,10 @@ php /var/www/html/occ app:enable calendar
 echo "Waiting for calendar app to initialize..."
 sleep 5
 
+# Increase limits on calendar creation for integration tests (100 in 60s)
+php occ config:app:set dav rateLimitCalendarCreation --type=integer --value=100
+php occ config:app:set dav rateLimitPeriodCalendarCreation --type=integer --value=60
+
 # Ensure maintenance mode is off before calendar operations
 php /var/www/html/occ maintenance:mode --off
 
