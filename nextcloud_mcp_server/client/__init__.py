@@ -1,7 +1,15 @@
 import logging
 import os
 
-from httpx import AsyncClient, Auth, BasicAuth, Request, Response
+from httpx import (
+    AsyncClient,
+    Auth,
+    BasicAuth,
+    Request,
+    Response,
+    AsyncBaseTransport,
+    AsyncHTTPTransport,
+)
 
 from ..controllers.notes_search import NotesSearchController
 from .calendar import CalendarClient
@@ -13,19 +21,34 @@ from .webdav import WebDAVClient
 logger = logging.getLogger(__name__)
 
 
-def log_request(request: Request):
-    logger.info(
+async def log_request(request: Request):
+    logger.debug(
         "Request event hook: %s %s - Waiting for content",
         request.method,
         request.url,
     )
-    logger.info("Request body: %s", request.content)
-    logger.info("Headers: %s", request.headers)
+    logger.debug("Request body: %s", request.content)
+    logger.debug("Headers: %s", request.headers)
 
 
-def log_response(response: Response):
-    response.read()  # Explicitly read the stream before accessing .text
-    logger.info("Response [%s] %s", response.status_code, response.text)
+async def log_response(response: Response):
+    await response.aread()
+    logger.debug("Response [%s] %s", response.status_code, response.text)
+
+
+class AsyncDisableCookieTransport(AsyncBaseTransport):
+    """This Transport disable cookies from accumulating in the httpx AsyncClient
+
+    Thanks to: https://github.com/encode/httpx/issues/2992#issuecomment-2133258994
+    """
+
+    def __init__(self, transport: AsyncBaseTransport):
+        self.transport = transport
+
+    async def handle_async_request(self, request: Request) -> Response:
+        response = await self.transport.handle_async_request(request)
+        response.headers.pop("set-cookie", None)
+        return response
 
 
 class NextcloudClient:
@@ -36,7 +59,8 @@ class NextcloudClient:
         self._client = AsyncClient(
             base_url=base_url,
             auth=auth,
-            # event_hooks={"request": [log_request], "response": [log_response]},
+            transport=AsyncDisableCookieTransport(AsyncHTTPTransport()),
+            event_hooks={"request": [log_request], "response": [log_response]},
         )
 
         # Initialize app clients
