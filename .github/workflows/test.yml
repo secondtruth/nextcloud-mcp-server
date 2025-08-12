@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc # v6
+        uses: astral-sh/setup-uv@d9e0f98d3fc6adb07d1e3d37f3043649ddad06a1 # v6
       - name: Check format
         run: |
           uv run --frozen ruff format --diff
@@ -31,7 +31,7 @@ jobs:
         with:
           compose-file: "./docker-compose.yml"
       - name: Install the latest version of uv
-        uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc # v6
+        uses: astral-sh/setup-uv@d9e0f98d3fc6adb07d1e3d37f3043649ddad06a1 # v6
 
       - name: Wait for service to be ready
         run: |
