@@ -38,6 +38,9 @@ mcp run --transport sse nextcloud_mcp_server.app:mcp
 # Docker development environment with Nextcloud instance
 docker-compose up
 
+# After code changes, rebuild and restart only the MCP server container
+docker-compose up --build -d mcp
+
 # Build Docker image
 docker build -t nextcloud-mcp-server .
 ```
@@ -96,6 +99,7 @@ Each Nextcloud app has a corresponding server module that:
 - **Integration tests** in `tests/integration/` - Test real Nextcloud API interactions
 - **Fixtures** in `tests/conftest.py` - Shared test setup and utilities
 - Tests are marked with `@pytest.mark.integration` for selective running
+- **Important**: Integration tests run against live Docker containers. After making code changes to the MCP server, rebuild only the MCP container with `docker-compose up --build -d mcp` before running tests
 
 ### Configuration Files
 

@@ -31,7 +31,7 @@ class WebDAVClient(BaseNextcloudClient):
             # First try a PROPFIND to verify resource exists
             propfind_headers = {"Depth": "0", "OCS-APIRequest": "true"}
             try:
-                propfind_resp = await self._client.request(
+                propfind_resp = await self._make_request(
                     "PROPFIND", webdav_path, headers=propfind_headers
                 )
                 logger.debug(
@@ -44,8 +44,7 @@ class WebDAVClient(BaseNextcloudClient):
                 # For other errors, continue with deletion attempt
 
             # Proceed with deletion
-            response = await self._client.delete(webdav_path, headers=headers)
-            response.raise_for_status()
+            response = await self._make_request("DELETE", webdav_path, headers=headers)
             logger.debug(f"Successfully deleted WebDAV resource '{path}'")
             return {"status_code": response.status_code}
 
