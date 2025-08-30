@@ -1,3 +1,9 @@
+## v0.8.1 (2025-08-30)
+
+### Fix
+
+- **model**: Serialize timestamps in RFC3339 format
+
 ## v0.8.0 (2025-08-30)
 
 ### Feat
