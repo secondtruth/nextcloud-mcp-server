@@ -1,3 +1,14 @@
+## v0.8.0 (2025-08-30)
+
+### Feat
+
+- **client**: Preserve fields when modifying contacts/calendar resources
+- **server**: Add structured output to all tool/resource output
+
+### Refactor
+
+- Use _make_request where available
+
 ## v0.7.2 (2025-08-30)
 
 ### Fix
