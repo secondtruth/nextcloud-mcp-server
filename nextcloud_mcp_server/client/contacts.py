@@ -143,6 +143,50 @@ class ContactsClient(BaseNextcloudClient):
         url = f"{carddav_path}/{addressbook}/{uid}.vcf"
         await self._make_request("DELETE", url)
 
+    async def update_contact(
+        self, *, addressbook: str, uid: str, contact_data: dict, etag: str = ""
+    ):
+        """Update an existing contact while preserving all existing properties."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{addressbook}/{uid}.vcf"
+
+        # Get raw vCard content to preserve all properties including extended ones
+        raw_vcard_content = ""
+        if not etag:
+            try:
+                raw_vcard_content, current_etag = await self._get_raw_vcard(
+                    addressbook, uid
+                )
+                etag = current_etag
+            except Exception:
+                # Fall back to creating new vCard if we can't get existing
+                logger.warning(
+                    f"Could not fetch existing vCard for {uid}, creating new"
+                )
+                raw_vcard_content = ""
+
+        # Create updated vCard preserving existing properties
+        if raw_vcard_content:
+            vcard_content = self._merge_vcard_properties(
+                raw_vcard_content, contact_data, uid
+            )
+        else:
+            # Fallback to creating new vCard if we couldn't get existing
+            contact = Contact(fn=contact_data.get("fn"), uid=uid)
+            if "email" in contact_data:
+                contact.email = [{"value": contact_data["email"], "type": ["HOME"]}]
+            if "tel" in contact_data:
+                contact.tel = [{"value": contact_data["tel"], "type": ["HOME"]}]
+            vcard_content = contact.to_vcard()
+
+        headers = {
+            "Content-Type": "text/vcard; charset=utf-8",
+        }
+        if etag:
+            headers["If-Match"] = etag
+
+        await self._make_request("PUT", url, content=vcard_content, headers=headers)
+
     async def list_contacts(self, *, addressbook: str):
         """List all available contacts for addressbook."""
 
@@ -233,3 +277,160 @@ class ContactsClient(BaseNextcloudClient):
 
         logger.debug(f"Found {len(contacts)} contacts")
         return contacts
+
+    async def _get_raw_vcard(self, addressbook: str, uid: str) -> tuple[str, str]:
+        """Get raw vCard content for a contact without parsing."""
+        carddav_path = self._get_carddav_base_path()
+        url = f"{carddav_path}/{addressbook}/{uid}.vcf"
+
+        try:
+            response = await self._make_request("GET", url)
+            etag = response.headers.get("etag", "")
+            return response.text, etag
+        except Exception as e:
+            logger.error(f"Error getting raw vCard for {uid}: {e}")
+            raise
+
+    def _merge_vcard_properties(
+        self, raw_vcard: str, contact_data: dict, uid: str
+    ) -> str:
+        """Merge new contact data into existing raw vCard while preserving all properties."""
+        try:
+            # Instead of using pythonvCard4 which has formatting issues,
+            # let's do a simple text-based merge to preserve exact formatting
+
+            # Start with the original vCard
+            lines = raw_vcard.strip().split("\n")
+            updated_lines = []
+
+            # Track what we've updated to avoid duplicates
+            updated_properties = set()
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Skip the END:VCARD line for now
+                if line == "END:VCARD":
+                    continue
+
+                property_name = line.split(":")[0].split(";")[0]
+
+                # Handle updates for specific properties
+                if property_name == "FN" and "fn" in contact_data:
+                    updated_lines.append(f"FN:{contact_data['fn']}")
+                    updated_properties.add("fn")
+                elif property_name == "EMAIL" and "email" in contact_data:
+                    # Replace first email with new one, preserve others
+                    if "email" not in updated_properties:
+                        if isinstance(contact_data["email"], str):
+                            # Try to preserve the original format as much as possible
+                            if ";TYPE=" in line:
+                                type_part = line.split(";TYPE=")[1].split(":")[0]
+                                updated_lines.append(
+                                    f"EMAIL;TYPE={type_part}:{contact_data['email']}"
+                                )
+                            else:
+                                updated_lines.append(f"EMAIL:{contact_data['email']}")
+                        updated_properties.add("email")
+                    else:
+                        # Keep additional emails unchanged
+                        updated_lines.append(line)
+                elif property_name == "TEL" and "tel" in contact_data:
+                    # Similar handling for phone numbers
+                    if "tel" not in updated_properties:
+                        if isinstance(contact_data["tel"], str):
+                            if ";TYPE=" in line:
+                                type_part = line.split(";TYPE=")[1].split(":")[0]
+                                updated_lines.append(
+                                    f"TEL;TYPE={type_part}:{contact_data['tel']}"
+                                )
+                            else:
+                                updated_lines.append(f"TEL:{contact_data['tel']}")
+                        updated_properties.add("tel")
+                    else:
+                        # Keep additional phone numbers unchanged
+                        updated_lines.append(line)
+                elif property_name == "NOTE" and "note" in contact_data:
+                    updated_lines.append(f"NOTE:{contact_data['note']}")
+                    updated_properties.add("note")
+                elif property_name == "NICKNAME" and "nickname" in contact_data:
+                    nickname_value = contact_data["nickname"]
+                    if isinstance(nickname_value, list):
+                        nickname_value = ",".join(nickname_value)
+                    updated_lines.append(f"NICKNAME:{nickname_value}")
+                    updated_properties.add("nickname")
+                elif property_name == "BDAY" and "bday" in contact_data:
+                    updated_lines.append(f"BDAY:{contact_data['bday']}")
+                    updated_properties.add("bday")
+                elif property_name == "CATEGORIES" and "categories" in contact_data:
+                    categories_value = contact_data["categories"]
+                    if isinstance(categories_value, list):
+                        categories_value = ",".join(categories_value)
+                    updated_lines.append(f"CATEGORIES:{categories_value}")
+                    updated_properties.add("categories")
+                elif property_name == "ORG" and (
+                    "org" in contact_data or "organization" in contact_data
+                ):
+                    org_value = contact_data.get("org") or contact_data.get(
+                        "organization"
+                    )
+                    updated_lines.append(f"ORG:{org_value}")
+                    updated_properties.add("org")
+                elif property_name == "TITLE" and "title" in contact_data:
+                    updated_lines.append(f"TITLE:{contact_data['title']}")
+                    updated_properties.add("title")
+                else:
+                    # Keep all other properties unchanged (preserves all extended/custom fields)
+                    updated_lines.append(line)
+
+            # Add any new properties that weren't in the original vCard
+            for key, value in contact_data.items():
+                if key not in updated_properties:
+                    if key == "fn":
+                        updated_lines.append(f"FN:{value}")
+                    elif key == "email" and isinstance(value, str):
+                        updated_lines.append(f"EMAIL:{value}")
+                    elif key == "tel" and isinstance(value, str):
+                        updated_lines.append(f"TEL:{value}")
+                    elif key == "note":
+                        updated_lines.append(f"NOTE:{value}")
+                    elif key == "nickname":
+                        nickname_value = (
+                            value if isinstance(value, str) else ",".join(value)
+                        )
+                        updated_lines.append(f"NICKNAME:{nickname_value}")
+                    elif key == "bday":
+                        updated_lines.append(f"BDAY:{value}")
+                    elif key == "categories":
+                        categories_value = (
+                            value if isinstance(value, str) else ",".join(value)
+                        )
+                        updated_lines.append(f"CATEGORIES:{categories_value}")
+                    elif key in ["org", "organization"]:
+                        updated_lines.append(f"ORG:{value}")
+                    elif key == "title":
+                        updated_lines.append(f"TITLE:{value}")
+
+            # Add the END:VCARD line
+            updated_lines.append("END:VCARD")
+
+            # Join all lines
+            return "\n".join(updated_lines)
+
+        except Exception as e:
+            logger.error(f"Error merging vCard properties: {e}")
+            # Fallback to creating basic vCard matching Nextcloud format
+            basic_vcard = f"""BEGIN:VCARD
+VERSION:3.0
+UID:{uid}
+FN:{contact_data.get("fn", "Unknown")}"""
+
+            if "email" in contact_data:
+                basic_vcard += f"\nEMAIL:{contact_data['email']}"
+            if "tel" in contact_data:
+                basic_vcard += f"\nTEL:{contact_data['tel']}"
+
+            basic_vcard += "\nEND:VCARD"
+            return basic_vcard

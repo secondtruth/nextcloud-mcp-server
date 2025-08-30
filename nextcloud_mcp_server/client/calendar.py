@@ -238,27 +238,33 @@ class CalendarClient(BaseNextcloudClient):
         event_data: Dict[str, Any],
         etag: str = "",
     ) -> Dict[str, Any]:
-        """Update an existing calendar event."""
+        """Update an existing calendar event while preserving all existing properties."""
         event_filename = f"{event_uid}.ics"
         event_path = f"{self._get_caldav_base_path()}/{calendar_name}/{event_filename}"
 
-        # Get existing event data to merge with updates
-        existing_event_data = {}
+        # Get raw iCal content to preserve all properties including extended ones
+        raw_ical_content = ""
         if not etag:
             try:
-                existing_event_data, current_etag = await self.get_event(
+                raw_ical_content, current_etag = await self._get_raw_ical(
                     calendar_name, event_uid
                 )
                 etag = current_etag
             except Exception:
-                # Continue without etag if we can't get it
-                pass
+                # Fall back to creating new iCal if we can't get existing
+                logger.warning(
+                    f"Could not fetch existing iCal for {event_uid}, creating new"
+                )
+                raw_ical_content = ""
 
-        # Merge existing data with new data (new data takes precedence)
-        merged_data = {**existing_event_data, **event_data}
-
-        # Create updated iCalendar event
-        ical_content = self._create_ical_event(merged_data, event_uid)
+        # Create updated iCalendar event preserving existing properties
+        if raw_ical_content:
+            ical_content = self._merge_ical_properties(
+                raw_ical_content, event_data, event_uid
+            )
+        else:
+            # Fallback to creating new iCal if we couldn't get existing
+            ical_content = self._create_ical_event(event_data, event_uid)
 
         headers = {
             "Content-Type": "text/calendar; charset=utf-8",
@@ -949,3 +955,122 @@ class CalendarClient(BaseNextcloudClient):
         except Exception as e:
             logger.error(f"Error deleting calendar {calendar_name}: {e}")
             raise
+
+    async def _get_raw_ical(
+        self, calendar_name: str, event_uid: str
+    ) -> Tuple[str, str]:
+        """Get raw iCal content for an event without parsing."""
+        event_filename = f"{event_uid}.ics"
+        event_path = f"{self._get_caldav_base_path()}/{calendar_name}/{event_filename}"
+
+        headers = {"Accept": "text/calendar"}
+
+        try:
+            response = await self._make_request("GET", event_path, headers=headers)
+            etag = response.headers.get("etag", "")
+            return response.text, etag
+        except Exception as e:
+            logger.error(f"Error getting raw iCal for {event_uid}: {e}")
+            raise
+
+    def _merge_ical_properties(
+        self, raw_ical: str, event_data: Dict[str, Any], event_uid: str
+    ) -> str:
+        """Merge new event data into existing raw iCal while preserving all properties."""
+        try:
+            # Parse existing iCal
+            cal = Calendar.from_ical(raw_ical)
+
+            # Find the VEVENT component
+            for component in cal.walk():
+                if component.name == "VEVENT":
+                    # Update only the properties that were provided in event_data
+                    if "title" in event_data:
+                        component["SUMMARY"] = event_data["title"]
+                    if "description" in event_data:
+                        component["DESCRIPTION"] = event_data["description"]
+                    if "location" in event_data:
+                        component["LOCATION"] = event_data["location"]
+                    if "status" in event_data:
+                        component["STATUS"] = event_data["status"].upper()
+                    if "priority" in event_data:
+                        component["PRIORITY"] = event_data["priority"]
+                    if "privacy" in event_data:
+                        component["CLASS"] = event_data["privacy"].upper()
+                    if "url" in event_data:
+                        component["URL"] = event_data["url"]
+
+                    # Handle dates
+                    if "start_datetime" in event_data:
+                        start_str = event_data["start_datetime"]
+                        all_day = event_data.get("all_day", False)
+                        if all_day:
+                            start_date = dt.datetime.fromisoformat(
+                                start_str.split("T")[0]
+                            ).date()
+                            component["DTSTART"] = start_date
+                        else:
+                            start_dt = dt.datetime.fromisoformat(
+                                start_str.replace("Z", "+00:00")
+                            )
+                            component["DTSTART"] = start_dt
+
+                    if "end_datetime" in event_data:
+                        end_str = event_data["end_datetime"]
+                        all_day = event_data.get("all_day", False)
+                        if all_day:
+                            end_date = dt.datetime.fromisoformat(
+                                end_str.split("T")[0]
+                            ).date()
+                            component["DTEND"] = end_date
+                        else:
+                            end_dt = dt.datetime.fromisoformat(
+                                end_str.replace("Z", "+00:00")
+                            )
+                            component["DTEND"] = end_dt
+
+                    # Handle categories
+                    if "categories" in event_data:
+                        categories = event_data["categories"]
+                        if categories:
+                            component["CATEGORIES"] = categories.split(",")
+
+                    # Handle recurrence
+                    if "recurring" in event_data:
+                        if event_data["recurring"] and "recurrence_rule" in event_data:
+                            recurrence_rule = event_data["recurrence_rule"]
+                            if recurrence_rule:
+                                component["RRULE"] = vRecur.from_ical(recurrence_rule)
+                        elif not event_data["recurring"]:
+                            # Remove recurrence if set to False
+                            if "RRULE" in component:
+                                del component["RRULE"]
+
+                    # Handle attendees
+                    if "attendees" in event_data:
+                        attendees = event_data["attendees"]
+                        # Remove existing attendees
+                        component.pop("ATTENDEE", None)
+                        if attendees:
+                            for email in attendees.split(","):
+                                if email.strip():
+                                    component.add("ATTENDEE", f"mailto:{email.strip()}")
+
+                    # Update timestamps in proper iCal format
+                    from icalendar import vDDDTypes
+
+                    now = dt.datetime.now(dt.UTC)
+                    component["LAST-MODIFIED"] = vDDDTypes(now)
+                    component["DTSTAMP"] = vDDDTypes(now)
+
+                    # Preserve all other existing properties (X-*, ORGANIZER, COMMENT, GEO, etc.)
+                    # by not touching them - they remain in the component
+
+                    break
+
+            return cal.to_ical().decode("utf-8")
+
+        except Exception as e:
+            logger.error(f"Error merging iCal properties: {e}")
+            # Fallback to creating new iCal
+            return self._create_ical_event(event_data, event_uid)
