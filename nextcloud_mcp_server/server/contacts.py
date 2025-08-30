@@ -17,7 +17,7 @@ def configure_contacts_tools(mcp: FastMCP):
 
     @mcp.tool()
     async def nc_contacts_list_contacts(ctx: Context, *, addressbook: str):
-        """List all addressbooks for the user."""
+        """List all contacts in the specified addressbook."""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.contacts.list_contacts(addressbook=addressbook)
 
@@ -63,3 +63,20 @@ def configure_contacts_tools(mcp: FastMCP):
         """Delete a contact."""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.contacts.delete_contact(addressbook=addressbook, uid=uid)
+
+    @mcp.tool()
+    async def nc_contacts_update_contact(
+        ctx: Context, *, addressbook: str, uid: str, contact_data: dict, etag: str = ""
+    ):
+        """Update an existing contact while preserving all existing properties.
+
+        Args:
+            addressbook: The name of the addressbook containing the contact.
+            uid: The unique ID of the contact to update.
+            contact_data: A dictionary with the contact's updated details, e.g. {"fn": "Jane Doe", "email": "jane.doe@example.com"}.
+            etag: Optional ETag for optimistic concurrency control.
+        """
+        client: NextcloudClient = ctx.request_context.lifespan_context.client
+        return await client.contacts.update_contact(
+            addressbook=addressbook, uid=uid, contact_data=contact_data, etag=etag
+        )
