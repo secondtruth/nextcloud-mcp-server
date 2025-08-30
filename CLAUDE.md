@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Testing
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run integration tests only
 uv run pytest -m integration
