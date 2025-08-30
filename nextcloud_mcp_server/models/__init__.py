@@ -5,7 +5,6 @@ from .base import (
     BaseResponse,
     ErrorResponse,
     SuccessResponse,
-    PaginatedResponse,
     IdResponse,
     StatusResponse,
 )
@@ -85,7 +84,6 @@ __all__ = [
     "BaseResponse",
     "ErrorResponse",
     "SuccessResponse",
-    "PaginatedResponse",
     "IdResponse",
     "StatusResponse",
     # Notes models

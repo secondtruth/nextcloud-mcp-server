@@ -1,7 +1,7 @@
 """Base Pydantic models for common response patterns."""
 
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -35,26 +35,6 @@ class SuccessResponse(BaseResponse):
 
     message: Optional[str] = Field(None, description="Optional success message")
     data: Optional[Dict[str, Any]] = Field(None, description="Optional response data")
-
-
-T = TypeVar("T")
-
-
-class PaginatedResponse(BaseResponse, Generic[T]):
-    """Generic paginated response model."""
-
-    items: List[T] = Field(description="List of items")
-    total_count: Optional[int] = Field(
-        None, description="Total number of items available"
-    )
-    page: Optional[int] = Field(None, description="Current page number")
-    page_size: Optional[int] = Field(None, description="Number of items per page")
-    has_more: Optional[bool] = Field(
-        None, description="Whether more items are available"
-    )
-    cursor: Optional[str] = Field(
-        None, description="Cursor for next page (if using cursor-based pagination)"
-    )
 
 
 class IdResponse(BaseResponse):
