@@ -1,3 +1,9 @@
+## v0.7.2 (2025-08-30)
+
+### Fix
+
+- **client**: Use paging to fetch all notes
+
 ## v0.7.1 (2025-08-08)
 
 ### Fix
