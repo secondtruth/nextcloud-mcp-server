@@ -1,22 +1,38 @@
 """Base Pydantic models for common response patterns."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
+
+
+def _utc_now() -> datetime:
+    """Generate UTC timestamp for responses."""
+    return datetime.now(timezone.utc)
 
 
 class BaseResponse(BaseModel):
     """Base response model for all MCP tool responses."""
 
-    model_config = {"json_encoders": {datetime: lambda v: v.isoformat()}}
-
     success: bool = Field(
         default=True, description="Whether the operation was successful"
     )
     timestamp: datetime = Field(
-        default_factory=datetime.now, description="Response timestamp"
+        default_factory=_utc_now, description="Response timestamp"
     )
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, timestamp: datetime) -> str:
+        """Serialize timestamp to RFC3339 format for MCP compliance."""
+        if timestamp.tzinfo is None:
+            # If somehow we get a naive datetime, assume UTC
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        # Use isoformat() which produces RFC3339 compliant format
+        # For UTC times, replace '+00:00' with 'Z' as preferred by many systems
+        iso_string = timestamp.isoformat()
+        if iso_string.endswith("+00:00"):
+            return iso_string[:-6] + "Z"
+        return iso_string
 
 
 class ErrorResponse(BaseResponse):
