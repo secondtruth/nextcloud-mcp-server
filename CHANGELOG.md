@@ -1,3 +1,10 @@
+## v0.8.3 (2025-08-31)
+
+### Fix
+
+- **server**: Replace ErrorResponses with standard McpErrors
+- **notes**: Include ETags in responses to avoid accidently updates
+
 ## v0.8.2 (2025-08-31)
 
 ### Fix
