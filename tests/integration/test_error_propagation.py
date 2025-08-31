@@ -20,23 +20,15 @@ async def test_missing_note_resource_error(nc_mcp_client: ClientSession):
 @pytest.mark.integration
 async def test_delete_missing_note_tool_error(nc_mcp_client: ClientSession):
     """Test that deleting a non-existent note returns proper error."""
-    # Try to delete a non-existent note
+    # Try to delete a non-existent note - should return error response
     response = await nc_mcp_client.call_tool(
         "nc_notes_delete_note", {"note_id": 999999}
     )
 
-    logger.info(f"Delete missing note response: {response}")
-
-    # Should return structured error response with improved message
+    # Should return error response (not raise exception) for tools
     assert response is not None
-    assert (
-        response.isError is False
-    )  # Tools now return structured responses, not MCP errors
-
-    # Check structured content for error
-    assert "success" in response.structuredContent["result"]
-    assert response.structuredContent["result"]["success"] is False
-    assert "Note 999999 not found" in response.structuredContent["result"]["error"]
+    assert response.isError is True
+    assert "Note 999999 not found" in response.content[0].text
 
 
 @pytest.mark.integration
@@ -81,7 +73,7 @@ async def test_update_note_with_invalid_etag(nc_mcp_client: ClientSession, nc_cl
     note_id = note_data["id"]
 
     try:
-        # Try to update with invalid ETag
+        # Try to update with invalid ETag - should return error response
         response = await nc_mcp_client.call_tool(
             "nc_notes_update_note",
             {
@@ -93,16 +85,10 @@ async def test_update_note_with_invalid_etag(nc_mcp_client: ClientSession, nc_cl
             },
         )
 
-        logger.info(f"Invalid ETag response: {response}")
-
-        # Should return structured error response with improved message
+        # Should return error response (not raise exception) for tools
         assert response is not None
-        assert response.isError is False  # Tools now return structured responses
-        assert "success" in response.structuredContent["result"]
-        assert response.structuredContent["result"]["success"] is False
-        assert (
-            "modified by someone else" in response.structuredContent["result"]["error"]
-        )
+        assert response.isError is True
+        assert "modified by someone else" in response.content[0].text
 
     finally:
         # Clean up

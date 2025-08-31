@@ -35,17 +35,6 @@ class BaseResponse(BaseModel):
         return iso_string
 
 
-class ErrorResponse(BaseResponse):
-    """Response model for error cases."""
-
-    success: bool = Field(default=False, description="Always False for error responses")
-    error: str = Field(description="Error message")
-    error_code: Optional[str] = Field(None, description="Optional error code")
-    details: Optional[Dict[str, Any]] = Field(
-        None, description="Additional error details"
-    )
-
-
 class SuccessResponse(BaseResponse):
     """Generic success response."""
 
