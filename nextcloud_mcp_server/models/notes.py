@@ -19,7 +19,7 @@ class Note(BaseModel):
     favorite: bool = Field(
         default=False, description="Whether note is marked as favorite"
     )
-    etag: Optional[str] = Field(None, description="ETag for versioning")
+    etag: str = Field(description="ETag for versioning")
     readonly: bool = Field(default=False, description="Whether note is read-only")
 
     @property

@@ -179,7 +179,9 @@ def configure_notes_tools(mcp: FastMCP):
     async def nc_notes_append_content(
         note_id: int, content: str, ctx: Context
     ) -> AppendContentResponse:
-        """Append content to an existing note with a clear separator. The tool automatically adds separators between existing and new content - do not include separators in your content."""
+        """Append content to an existing note. The tool adds a `\n---\n`
+        between the note and what will be appended."""
+
         logger.info("Appending content to note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:

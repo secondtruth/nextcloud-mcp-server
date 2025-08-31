@@ -334,13 +334,11 @@ async def test_mcp_notes_etag_conflict(
         )
 
         # 4. Verify the update was rejected with a 412 error
-        # The MCP framework doesn't set isError=True for ErrorResponse, so check the response content
+        # With McpError, tools now return proper error responses
+        assert conflict_result.isError is True, "Update with stale ETag should fail"
         response_content = conflict_result.content[0].text
-        response_data = json.loads(response_content)
-
-        assert response_data["success"] is False, "Update with stale ETag should fail"
-        assert "modified by someone else" in response_data["error"], (
-            f"Expected conflict error message, got: {response_data}"
+        assert "modified by someone else" in response_content, (
+            f"Expected conflict error message, got: {response_content}"
         )
 
         logger.info("Successfully verified ETag conflict handling via MCP")
