@@ -48,13 +48,16 @@ class NotesSettings(BaseModel):
 class CreateNoteResponse(IdResponse):
     """Response model for note creation."""
 
-    note: Note = Field(description="The created note")
+    title: str = Field(description="The created note title")
+    category: str = Field(description="The created note category")
 
 
 class UpdateNoteResponse(BaseResponse):
     """Response model for note updates."""
 
-    note: Note = Field(description="The updated note")
+    id: int = Field(description="The updated note ID")
+    title: str = Field(description="The updated note title")
+    category: str = Field(description="The updated note category")
 
 
 class DeleteNoteResponse(StatusResponse):
@@ -66,7 +69,9 @@ class DeleteNoteResponse(StatusResponse):
 class AppendContentResponse(BaseResponse):
     """Response model for appending content to a note."""
 
-    note: Note = Field(description="The updated note after appending content")
+    id: int = Field(description="The updated note ID")
+    title: str = Field(description="The updated note title")
+    category: str = Field(description="The updated note category")
 
 
 class SearchNotesResponse(BaseResponse):
