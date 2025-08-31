@@ -1,3 +1,9 @@
+## v0.8.2 (2025-08-31)
+
+### Fix
+
+- **notes**: Remove note contents from responses to reduce token usage
+
 ## v0.8.1 (2025-08-30)
 
 ### Fix
