@@ -3,7 +3,6 @@
 # Base models
 from .base import (
     BaseResponse,
-    SuccessResponse,
     IdResponse,
     StatusResponse,
 )
@@ -81,7 +80,6 @@ from .webdav import (
 __all__ = [
     # Base models
     "BaseResponse",
-    "SuccessResponse",
     "IdResponse",
     "StatusResponse",
     # Notes models

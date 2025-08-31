@@ -5,7 +5,7 @@ import json
 import logging
 import re
 
-from nextcloud_mcp_server.models.base import BaseResponse, SuccessResponse
+from nextcloud_mcp_server.models.base import BaseResponse
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def test_timestamp_format_validation():
     seen in MCP inspector. MCP expects RFC3339 format with timezone information.
     """
     # Create a response object
-    response = SuccessResponse(message="Test message")
+    response = BaseResponse()
 
     # Serialize to JSON (mimics what MCP inspector sees)
     json_str = response.model_dump_json()
