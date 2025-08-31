@@ -90,7 +90,9 @@ def configure_notes_tools(mcp: FastMCP):
                 category=category,
             )
             note = Note(**note_data)
-            return CreateNoteResponse(id=note.id, note=note)
+            return CreateNoteResponse(
+                id=note.id, title=note.title, category=note.category
+            )
         except HTTPStatusError as e:
             if e.response.status_code == 403:
                 return ErrorResponse(
@@ -128,7 +130,9 @@ def configure_notes_tools(mcp: FastMCP):
                 category=category,
             )
             note = Note(**note_data)
-            return UpdateNoteResponse(note=note)
+            return UpdateNoteResponse(
+                id=note.id, title=note.title, category=note.category
+            )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 return ErrorResponse(error=f"Note {note_id} not found")
@@ -151,7 +155,7 @@ def configure_notes_tools(mcp: FastMCP):
     async def nc_notes_append_content(
         note_id: int, content: str, ctx: Context
     ) -> AppendContentResponse | ErrorResponse:
-        """Append content to an existing note with a clear separator"""
+        """Append content to an existing note with a clear separator. The tool automatically adds separators between existing and new content - do not include separators in your content."""
         logger.info("Appending content to note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -159,7 +163,9 @@ def configure_notes_tools(mcp: FastMCP):
                 note_id=note_id, content=content
             )
             note = Note(**note_data)
-            return AppendContentResponse(note=note)
+            return AppendContentResponse(
+                id=note.id, title=note.title, category=note.category
+            )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 return ErrorResponse(error=f"Note {note_id} not found")
