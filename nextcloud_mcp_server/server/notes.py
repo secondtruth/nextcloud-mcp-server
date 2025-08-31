@@ -91,7 +91,7 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return CreateNoteResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 403:
@@ -118,7 +118,12 @@ def configure_notes_tools(mcp: FastMCP):
         category: str | None,
         ctx: Context,
     ) -> UpdateNoteResponse | ErrorResponse:
-        """Update an existing note's title, content, or category"""
+        """Update an existing note's title, content, or category.
+
+        REQUIRED: etag parameter must be provided to prevent overwriting concurrent changes.
+        Get the current ETag by first retrieving the note using nc://Notes/{note_id} resource.
+        If the note has been modified by someone else since you retrieved it,
+        the update will fail with a 412 error."""
         logger.info("Updating note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -131,7 +136,7 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return UpdateNoteResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
@@ -164,7 +169,7 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return AppendContentResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
