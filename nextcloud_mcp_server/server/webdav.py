@@ -43,11 +43,11 @@ def configure_webdav_tools(mcp: FastMCP):
         Examples:
             # Read a text file
             result = await nc_webdav_read_file("Documents/readme.txt")
-            print(result['content'])  # Decoded text content
+            logger.info(result['content'])  # Decoded text content
 
             # Read a binary file
             result = await nc_webdav_read_file("Images/photo.jpg")
-            print(result['encoding'])  # 'base64'
+            logger.info(result['encoding'])  # 'base64'
         """
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         content, content_type = await client.webdav.read_file(path)

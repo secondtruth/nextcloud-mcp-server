@@ -1,11 +1,13 @@
 """Unit tests for Pydantic models and serialization."""
 
-import json
-import re
 from datetime import datetime, timezone
+import json
+import logging
+import re
 
+from nextcloud_mcp_server.models.base import BaseResponse
 
-from nextcloud_mcp_server.models.base import BaseResponse, SuccessResponse
+logger = logging.getLogger(__name__)
 
 
 def test_timestamp_format_validation():
@@ -15,7 +17,7 @@ def test_timestamp_format_validation():
     seen in MCP inspector. MCP expects RFC3339 format with timezone information.
     """
     # Create a response object
-    response = SuccessResponse(message="Test message")
+    response = BaseResponse()
 
     # Serialize to JSON (mimics what MCP inspector sees)
     json_str = response.model_dump_json()
@@ -76,7 +78,7 @@ def test_current_broken_format():
     assert "+" not in current_format
     assert "-" not in current_format[-6:]  # Check last 6 chars for timezone
 
-    print(f"Current broken format: {current_format}")
-    print(
+    logger.info(f"Current broken format: {current_format}")
+    logger.info(
         "This format causes MCP validation errors because it lacks timezone information"
     )

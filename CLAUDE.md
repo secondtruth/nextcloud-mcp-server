@@ -102,13 +102,19 @@ Each Nextcloud app has a corresponding server module that:
 - **Important**: Integration tests run against live Docker containers. After making code changes to the MCP server, rebuild only the MCP container with `docker-compose up --build -d mcp` before running tests
 
 #### Testing Best Practices
-- **Always restart MCP server** after code changes with `docker-compose up --build -d mcp`
+- **MANDATORY: Always run tests after implementing features or fixing bugs**
+  - Run tests to completion before considering any task complete
+  - If tests require modifications to pass, ask for permission before proceeding
+  - Use `docker-compose up --build -d mcp` to rebuild MCP container after code changes
 - **Use existing fixtures** from `tests/conftest.py` to avoid duplicate setup work:
   - `nc_mcp_client` - MCP client session for tool/resource testing  
   - `nc_client` - Direct NextcloudClient for setup/cleanup operations
   - `temporary_note` - Creates and cleans up test notes automatically
   - `temporary_addressbook` - Creates and cleans up test address books
   - `temporary_contact` - Creates and cleans up test contacts
+- **Test specific functionality** after changes:
+  - For Notes changes: `uv run pytest tests/integration/test_mcp.py -k "notes" -v`
+  - For specific API changes: `uv run pytest tests/integration/test_notes_api.py -v`
 - **Avoid creating standalone test scripts** - use pytest with proper fixtures instead
 
 ### Configuration Files

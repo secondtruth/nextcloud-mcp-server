@@ -1,7 +1,7 @@
 """Base Pydantic models for common response patterns."""
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field, field_serializer
 
@@ -33,24 +33,6 @@ class BaseResponse(BaseModel):
         if iso_string.endswith("+00:00"):
             return iso_string[:-6] + "Z"
         return iso_string
-
-
-class ErrorResponse(BaseResponse):
-    """Response model for error cases."""
-
-    success: bool = Field(default=False, description="Always False for error responses")
-    error: str = Field(description="Error message")
-    error_code: Optional[str] = Field(None, description="Optional error code")
-    details: Optional[Dict[str, Any]] = Field(
-        None, description="Additional error details"
-    )
-
-
-class SuccessResponse(BaseResponse):
-    """Generic success response."""
-
-    message: Optional[str] = Field(None, description="Optional success message")
-    data: Optional[Dict[str, Any]] = Field(None, description="Optional response data")
 
 
 class IdResponse(BaseResponse):

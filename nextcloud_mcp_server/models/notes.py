@@ -19,7 +19,7 @@ class Note(BaseModel):
     favorite: bool = Field(
         default=False, description="Whether note is marked as favorite"
     )
-    etag: Optional[str] = Field(None, description="ETag for versioning")
+    etag: str = Field(description="ETag for versioning")
     readonly: bool = Field(default=False, description="Whether note is read-only")
 
     @property
@@ -50,6 +50,7 @@ class CreateNoteResponse(IdResponse):
 
     title: str = Field(description="The created note title")
     category: str = Field(description="The created note category")
+    etag: str = Field(description="Current ETag for the created note")
 
 
 class UpdateNoteResponse(BaseResponse):
@@ -58,6 +59,7 @@ class UpdateNoteResponse(BaseResponse):
     id: int = Field(description="The updated note ID")
     title: str = Field(description="The updated note title")
     category: str = Field(description="The updated note category")
+    etag: str = Field(description="Current ETag for the updated note")
 
 
 class DeleteNoteResponse(StatusResponse):
@@ -72,6 +74,7 @@ class AppendContentResponse(BaseResponse):
     id: int = Field(description="The updated note ID")
     title: str = Field(description="The updated note title")
     category: str = Field(description="The updated note category")
+    etag: str = Field(description="Current ETag for the updated note")
 
 
 class SearchNotesResponse(BaseResponse):

@@ -1,10 +1,11 @@
 import logging
 from httpx import HTTPStatusError
+from mcp.shared.exceptions import McpError
+from mcp.types import ErrorData
 
 from mcp.server.fastmcp import Context, FastMCP
 
 from nextcloud_mcp_server.client import NextcloudClient
-from nextcloud_mcp_server.models.base import ErrorResponse
 from nextcloud_mcp_server.models.notes import (
     Note,
     NotesSettings,
@@ -54,8 +55,6 @@ def configure_notes_tools(mcp: FastMCP):
     @mcp.resource("nc://Notes/{note_id}")
     async def nc_get_note(note_id: int):
         """Get user note using note id"""
-        from mcp.shared.exceptions import McpError
-        from mcp.types import ErrorData
 
         ctx: Context = mcp.get_context()
         client: NextcloudClient = ctx.request_context.lifespan_context.client
@@ -80,7 +79,7 @@ def configure_notes_tools(mcp: FastMCP):
     @mcp.tool()
     async def nc_notes_create_note(
         title: str, content: str, category: str, ctx: Context
-    ) -> CreateNoteResponse | ErrorResponse:
+    ) -> CreateNoteResponse:
         """Create a new note"""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -91,22 +90,31 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return CreateNoteResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 403:
-                return ErrorResponse(
-                    error="Access denied: insufficient permissions to create notes"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message="Access denied: insufficient permissions to create notes",
+                    )
                 )
             elif e.response.status_code == 413:
-                return ErrorResponse(error="Note content too large")
+                raise McpError(ErrorData(code=-1, message="Note content too large"))
             elif e.response.status_code == 409:
-                return ErrorResponse(
-                    error=f"A note with title '{title}' already exists in this category"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"A note with title '{title}' already exists in this category",
+                    )
                 )
             else:
-                return ErrorResponse(
-                    error=f"Failed to create note: server error ({e.response.status_code})"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to create note: server error ({e.response.status_code})",
+                    )
                 )
 
     @mcp.tool()
@@ -117,8 +125,13 @@ def configure_notes_tools(mcp: FastMCP):
         content: str | None,
         category: str | None,
         ctx: Context,
-    ) -> UpdateNoteResponse | ErrorResponse:
-        """Update an existing note's title, content, or category"""
+    ) -> UpdateNoteResponse:
+        """Update an existing note's title, content, or category.
+
+        REQUIRED: etag parameter must be provided to prevent overwriting concurrent changes.
+        Get the current ETag by first retrieving the note using nc://Notes/{note_id} resource.
+        If the note has been modified by someone else since you retrieved it,
+        the update will fail with a 412 error."""
         logger.info("Updating note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -131,31 +144,44 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return UpdateNoteResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                return ErrorResponse(error=f"Note {note_id} not found")
+                raise McpError(ErrorData(code=-1, message=f"Note {note_id} not found"))
             elif e.response.status_code == 412:
-                return ErrorResponse(
-                    error=f"Note {note_id} has been modified by someone else. Please refresh and try again."
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Note {note_id} has been modified by someone else. Please refresh and try again.",
+                    )
                 )
             elif e.response.status_code == 403:
-                return ErrorResponse(
-                    error=f"Access denied: insufficient permissions to update note {note_id}"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Access denied: insufficient permissions to update note {note_id}",
+                    )
                 )
             elif e.response.status_code == 413:
-                return ErrorResponse(error="Updated note content is too large")
+                raise McpError(
+                    ErrorData(code=-1, message="Updated note content is too large")
+                )
             else:
-                return ErrorResponse(
-                    error=f"Failed to update note {note_id}: server error ({e.response.status_code})"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to update note {note_id}: server error ({e.response.status_code})",
+                    )
                 )
 
     @mcp.tool()
     async def nc_notes_append_content(
         note_id: int, content: str, ctx: Context
-    ) -> AppendContentResponse | ErrorResponse:
-        """Append content to an existing note with a clear separator. The tool automatically adds separators between existing and new content - do not include separators in your content."""
+    ) -> AppendContentResponse:
+        """Append content to an existing note. The tool adds a `\n---\n`
+        between the note and what will be appended."""
+
         logger.info("Appending content to note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -164,28 +190,35 @@ def configure_notes_tools(mcp: FastMCP):
             )
             note = Note(**note_data)
             return AppendContentResponse(
-                id=note.id, title=note.title, category=note.category
+                id=note.id, title=note.title, category=note.category, etag=note.etag
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                return ErrorResponse(error=f"Note {note_id} not found")
+                raise McpError(ErrorData(code=-1, message=f"Note {note_id} not found"))
             elif e.response.status_code == 403:
-                return ErrorResponse(
-                    error=f"Access denied: insufficient permissions to modify note {note_id}"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Access denied: insufficient permissions to modify note {note_id}",
+                    )
                 )
             elif e.response.status_code == 413:
-                return ErrorResponse(
-                    error="Content to append would make the note too large"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message="Content to append would make the note too large",
+                    )
                 )
             else:
-                return ErrorResponse(
-                    error=f"Failed to append content to note {note_id}: server error ({e.response.status_code})"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to append content to note {note_id}: server error ({e.response.status_code})",
+                    )
                 )
 
     @mcp.tool()
-    async def nc_notes_search_notes(
-        query: str, ctx: Context
-    ) -> SearchNotesResponse | ErrorResponse:
+    async def nc_notes_search_notes(query: str, ctx: Context) -> SearchNotesResponse:
         """Search notes by title or content, returning only id, title, and category."""
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         try:
@@ -207,20 +240,26 @@ def configure_notes_tools(mcp: FastMCP):
             )
         except HTTPStatusError as e:
             if e.response.status_code == 403:
-                return ErrorResponse(
-                    error="Access denied: insufficient permissions to search notes"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message="Access denied: insufficient permissions to search notes",
+                    )
                 )
             elif e.response.status_code == 400:
-                return ErrorResponse(error="Invalid search query format")
+                raise McpError(
+                    ErrorData(code=-1, message="Invalid search query format")
+                )
             else:
-                return ErrorResponse(
-                    error=f"Search failed: server error ({e.response.status_code})"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Search failed: server error ({e.response.status_code})",
+                    )
                 )
 
     @mcp.tool()
-    async def nc_notes_delete_note(
-        note_id: int, ctx: Context
-    ) -> DeleteNoteResponse | ErrorResponse:
+    async def nc_notes_delete_note(note_id: int, ctx: Context) -> DeleteNoteResponse:
         """Delete a note permanently"""
         logger.info("Deleting note %s", note_id)
         client: NextcloudClient = ctx.request_context.lifespan_context.client
@@ -233,12 +272,18 @@ def configure_notes_tools(mcp: FastMCP):
             )
         except HTTPStatusError as e:
             if e.response.status_code == 404:
-                return ErrorResponse(error=f"Note {note_id} not found")
+                raise McpError(ErrorData(code=-1, message=f"Note {note_id} not found"))
             elif e.response.status_code == 403:
-                return ErrorResponse(
-                    error=f"Access denied: insufficient permissions to delete note {note_id}"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Access denied: insufficient permissions to delete note {note_id}",
+                    )
                 )
             else:
-                return ErrorResponse(
-                    error=f"Failed to delete note {note_id}: server error ({e.response.status_code})"
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to delete note {note_id}: server error ({e.response.status_code})",
+                    )
                 )
