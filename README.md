@@ -268,10 +268,10 @@ Ensure your environment variables are loaded, then run the server using `mcp run
 export $(grep -v '^#' .env | xargs)
 
 # Run the server
-mcp run --transport sse nextcloud_mcp_server.app:mcp
+uv run mcp run -t sse nextcloud_mcp_server/app.py:mcp
 ```
 
-The server will start, typically listening on `http://localhost:8000`.
+The server will start, typically listening on `http://127.0.0.1:8000`.
 
 > NOTE: To make the server bind to a different address, use the FASTMCP_HOST environmental variable
 
@@ -287,13 +287,13 @@ This will start the server and expose it on port 8000 of your local machine.
 
 ## Usage
 
-Once the server is running, you can connect to it using an MCP client like `uvx`. Add the server to your `uvx` configuration:
+Once the server is running, you can connect to it using an MCP client like `MCP Inspector`. Once your MCP server is running, launch MCP Inspector as follows:
 
 ```bash
-uvx mcp add nextcloud-mcp http://localhost:8000 --default-transport sse
+uv run mcp dev
 ```
 
-You can then interact with the server's tools and resources through your LLM interface connected to `uvx`.
+You can then connect to and interact with the server's tools and resources through your browser.
 
 ## References:
 
