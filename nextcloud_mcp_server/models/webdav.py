@@ -86,3 +86,13 @@ class DeleteResourceResponse(StatusResponse):
     items_deleted: Optional[int] = Field(
         None, description="Number of items deleted (for directories)"
     )
+
+
+class MoveResourceResponse(StatusResponse):
+    """Response model for resource move/rename operations."""
+
+    source_path: str = Field(description="Original path of the resource")
+    destination_path: str = Field(description="New path of the resource")
+    overwrite: bool = Field(
+        description="Whether the destination was overwritten if it existed"
+    )
