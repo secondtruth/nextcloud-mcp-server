@@ -181,3 +181,35 @@ def configure_webdav_tools(mcp: FastMCP):
         return await client.webdav.move_resource(
             source_path, destination_path, overwrite
         )
+
+    @mcp.tool()
+    async def nc_webdav_copy_resource(
+        source_path: str, destination_path: str, ctx: Context, overwrite: bool = False
+    ):
+        """Copy a file or directory in NextCloud.
+
+        Args:
+            source_path: Full path of the file or directory to copy
+            destination_path: Destination path for the copy
+            overwrite: Whether to overwrite the destination if it exists (default: False)
+
+        Returns:
+            Dict with status_code indicating result (404 if source not found, 412 if destination exists and overwrite is False)
+
+        Examples:
+            # Copy a file
+            await nc_webdav_copy_resource("document.txt", "document_copy.txt")
+
+            # Copy a file to another directory
+            await nc_webdav_copy_resource("document.txt", "Backup/document.txt")
+
+            # Copy a directory
+            await nc_webdav_copy_resource("Projects/ProjectA", "Projects/ProjectA_Backup")
+
+            # Copy and overwrite if destination exists
+            await nc_webdav_copy_resource("document.txt", "Backup/document.txt", overwrite=True)
+        """
+        client: NextcloudClient = ctx.request_context.lifespan_context.client
+        return await client.webdav.copy_resource(
+            source_path, destination_path, overwrite
+        )

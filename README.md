@@ -79,6 +79,7 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | `nc_webdav_create_directory` | Create new directories |
 | `nc_webdav_delete_resource` | Delete files or directories |
 | `nc_webdav_move_resource` | Move or rename files and directories |
+| `nc_webdav_copy_resource` | Copy files and directories |
 
 ## Available Resources
 
@@ -126,6 +127,15 @@ await nc_webdav_move_resource("document.txt", "Archive/document.txt")
 
 # Move a directory
 await nc_webdav_move_resource("Projects/OldProject", "Projects/NewProject")
+
+# Copy a file
+await nc_webdav_copy_resource("document.txt", "document_copy.txt")
+
+# Copy a file to another directory
+await nc_webdav_copy_resource("document.txt", "Backup/document.txt")
+
+# Copy a directory
+await nc_webdav_copy_resource("Projects/ProjectA", "Projects/ProjectA_Backup")
 ```
 
 ### Calendar Integration

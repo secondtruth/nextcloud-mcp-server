@@ -496,3 +496,77 @@ class WebDAVClient(BaseNextcloudClient):
                 f"Unexpected error moving resource from '{source_path}' to '{destination_path}': {e}"
             )
             raise e
+
+    async def copy_resource(
+        self, source_path: str, destination_path: str, overwrite: bool = False
+    ) -> Dict[str, Any]:
+        """Copy a resource (file or directory) via WebDAV COPY.
+
+        Args:
+            source_path: The path of the file or directory to copy
+            destination_path: The destination path for the copy
+            overwrite: Whether to overwrite the destination if it exists
+
+        Returns:
+            Dict with status_code and optional message
+        """
+        source_webdav_path = f"{self._get_webdav_base_path()}/{source_path.lstrip('/')}"
+        destination_webdav_path = (
+            f"{self._get_webdav_base_path()}/{destination_path.lstrip('/')}"
+        )
+
+        # Ensure paths have consistent trailing slashes for directories
+        if source_path.endswith("/") and not destination_path.endswith("/"):
+            destination_webdav_path += "/"
+        elif not source_path.endswith("/") and destination_path.endswith("/"):
+            source_webdav_path += "/"
+
+        logger.debug(f"Copying resource from '{source_path}' to '{destination_path}'")
+
+        headers = {
+            "OCS-APIRequest": "true",
+            "Destination": destination_webdav_path,
+            "Overwrite": "T" if overwrite else "F",
+        }
+
+        try:
+            response = await self._make_request(
+                "COPY", source_webdav_path, headers=headers
+            )
+            response.raise_for_status()
+
+            logger.debug(
+                f"Successfully copied resource from '{source_path}' to '{destination_path}'"
+            )
+            return {"status_code": response.status_code}
+
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.debug(f"Source resource '{source_path}' not found")
+                return {"status_code": 404, "message": "Source resource not found"}
+            elif e.response.status_code == 412:
+                logger.debug(
+                    f"Destination '{destination_path}' already exists and overwrite is false"
+                )
+                return {
+                    "status_code": 412,
+                    "message": "Destination already exists and overwrite is false",
+                }
+            elif e.response.status_code == 409:
+                logger.debug(
+                    f"Parent directory of destination '{destination_path}' doesn't exist"
+                )
+                return {
+                    "status_code": 409,
+                    "message": "Parent directory of destination doesn't exist",
+                }
+            else:
+                logger.error(
+                    f"HTTP error copying resource from '{source_path}' to '{destination_path}': {e}"
+                )
+                raise e
+        except Exception as e:
+            logger.error(
+                f"Unexpected error copying resource from '{source_path}' to '{destination_path}': {e}"
+            )
+            raise e

@@ -96,3 +96,13 @@ class MoveResourceResponse(StatusResponse):
     overwrite: bool = Field(
         description="Whether the destination was overwritten if it existed"
     )
+
+
+class CopyResourceResponse(StatusResponse):
+    """Response model for resource copy operations."""
+
+    source_path: str = Field(description="Original path of the resource")
+    destination_path: str = Field(description="Destination path for the copy")
+    overwrite: bool = Field(
+        description="Whether the destination was overwritten if it existed"
+    )
