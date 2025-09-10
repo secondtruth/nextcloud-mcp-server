@@ -70,6 +70,13 @@ class DeckBoard(BaseModel):
         return v
 
 
+class DeckAssignedUser(BaseModel):
+    id: int
+    participant: DeckUser
+    cardId: int
+    type: int
+
+
 class DeckCard(BaseModel):
     id: int
     title: str
@@ -84,7 +91,7 @@ class DeckCard(BaseModel):
     lastModified: Optional[int] = None
     createdAt: Optional[int] = None
     labels: Optional[List[DeckLabel]] = None
-    assignedUsers: Optional[List[DeckUser]] = None
+    assignedUsers: Optional[List[Union[DeckUser, DeckAssignedUser]]] = None
     attachments: Optional[List[Any]] = None  # Define a proper Attachment model later
     attachmentCount: Optional[int] = None
     deletedAt: Optional[int] = None
@@ -99,6 +106,27 @@ class DeckCard(BaseModel):
         if isinstance(v, dict):
             return v.get("uid", v.get("primaryKey", str(v)))
         return v
+
+    @field_validator("assignedUsers", mode="before")
+    @classmethod
+    def validate_assigned_users(cls, v):
+        # Handle different formats of assigned users from the API
+        if not v:
+            return v
+
+        validated_users = []
+        for user in v:
+            if isinstance(user, dict):
+                # Check if it's an assignment object with participant
+                if "participant" in user:
+                    validated_users.append(user)
+                # Check if it's a direct user object
+                elif "uid" in user or "primaryKey" in user:
+                    validated_users.append(user)
+            else:
+                validated_users.append(user)
+
+        return validated_users
 
 
 class DeckStack(BaseModel):
@@ -171,13 +199,70 @@ class CreateBoardResponse(BaseResponse):
     color: str = Field(description="The created board color")
 
 
-class GetBoardResponse(BaseResponse):
-    """Response model for getting board details."""
-
-    board: DeckBoard = Field(description="Board details")
-
-
 class BoardOperationResponse(StatusResponse):
     """Response model for board operations like update/delete."""
 
     board_id: int = Field(description="ID of the affected board")
+
+
+# Stack Response Models
+
+
+class ListStacksResponse(BaseResponse):
+    """Response model for listing deck stacks."""
+
+    stacks: List[DeckStack] = Field(description="List of deck stacks")
+    total: int = Field(description="Total number of stacks")
+
+
+class CreateStackResponse(BaseResponse):
+    """Response model for stack creation."""
+
+    id: int = Field(description="The created stack ID")
+    title: str = Field(description="The created stack title")
+    order: int = Field(description="The created stack order")
+
+
+class StackOperationResponse(StatusResponse):
+    """Response model for stack operations like update/delete."""
+
+    stack_id: int = Field(description="ID of the affected stack")
+    board_id: int = Field(description="ID of the board containing the stack")
+
+
+# Card Response Models
+
+
+class CreateCardResponse(BaseResponse):
+    """Response model for card creation."""
+
+    id: int = Field(description="The created card ID")
+    title: str = Field(description="The created card title")
+    description: Optional[str] = Field(description="The created card description")
+    stackId: int = Field(description="The stack ID the card belongs to")
+
+
+class CardOperationResponse(StatusResponse):
+    """Response model for card operations like update/delete."""
+
+    card_id: int = Field(description="ID of the affected card")
+    stack_id: int = Field(description="ID of the stack containing the card")
+    board_id: int = Field(description="ID of the board containing the card")
+
+
+# Label Response Models
+
+
+class CreateLabelResponse(BaseResponse):
+    """Response model for label creation."""
+
+    id: int = Field(description="The created label ID")
+    title: str = Field(description="The created label title")
+    color: str = Field(description="The created label color")
+
+
+class LabelOperationResponse(StatusResponse):
+    """Response model for label operations like update/delete."""
+
+    label_id: int = Field(description="ID of the affected label")
+    board_id: int = Field(description="ID of the board containing the label")
