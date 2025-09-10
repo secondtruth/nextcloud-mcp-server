@@ -17,6 +17,11 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 | **Tables** | ⚠️ Row Operations | Read table schemas and perform CRUD operations on table rows. Table management not yet supported. |
 | **Files (WebDAV)** | ✅ Full Support | Complete file system access - browse directories, read/write files, create/delete resources. |
 | **Contacts** | ✅ Full Support | Create, read, update, and delete contacts and address books via CardDAV. |
+| **Deck** | ❌ [Not Started](https://github.com/cbcoutinho/nextcloud-mcp-server/issues/75) | TBD |
+| **Tasks** | ❌ [Not Started](https://github.com/cbcoutinho/nextcloud-mcp-server/issues/73) | TBD |
+
+Is there a Nextcloud app not present in this list that you'd like to be
+included? Feel free to open an issue, or contribute via a pull-request.
 
 ## Available Tools
 
@@ -232,9 +237,9 @@ This server supports adding and retrieving note attachments via WebDAV. Please n
     git clone https://github.com/cbcoutinho/nextcloud-mcp-server.git
     cd nextcloud-mcp-server
     ```
-2.  Install the package (if running as a library):
+2.  Install the package dependencies (if running via CLI):
     ```bash
-    poetry install
+    uv sync
     ```
 
 ### Docker
@@ -255,32 +260,91 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 *   `NEXTCLOUD_HOST`: The full URL of your Nextcloud instance.
 *   `NEXTCLOUD_USERNAME`: Your Nextcloud username.
 *   `NEXTCLOUD_PASSWORD`: **Important:** It is highly recommended to use a dedicated Nextcloud App Password for security. You can generate one in your Nextcloud Security settings. Alternatively, you can use your regular login password, but this is less secure.
-*   `FASTMCP_HOST`: _Optional:_ By default FastMCP binds to localhost. Use this variable to set a different binding address (e.g. `0.0.0.0`)
 
 ## Running the Server
 
 ### Locally
 
-Ensure your environment variables are loaded, then run the server using `mcp run`:
+Ensure your environment variables are loaded, then run the server. You have several options:
+
+#### Option 1: Using `nextcloud_mcp_server` cli (recommended)
+```bash
+# Load environment variables from your .env file
+export $(grep -v '^#' .env | xargs)
+
+# Or run the app module directly with custom options
+uv run python -m nextcloud_mcp_server.app --host 0.0.0.0 --port 8080 --log-level info --reload
+
+# Enable only specific Nextcloud app APIs
+uv run python -m nextcloud_mcp_server.app --enable-app notes --enable-app calendar
+
+# Enable only WebDAV for file operations
+uv run python -m nextcloud_mcp_server.app --enable-app webdav
+```
+
+#### Option 2: Using `uvicorn`
+
+You can also run the MCP server with `uvicorn` directly, which enables support
+for all uvicorn arguments (e.g. `--reload`, `--workers`).
 
 ```bash
 # Load environment variables from your .env file
 export $(grep -v '^#' .env | xargs)
 
-# Run the server
-uv run mcp run -t sse nextcloud_mcp_server/app.py:mcp
+# Run with uvicorn using the --factory option
+uv run uvicorn nextcloud_mcp_server.app:get_app --factory --reload --host 127.0.0.1 --port 8000
 ```
 
 The server will start, typically listening on `http://127.0.0.1:8000`.
 
-> NOTE: To make the server bind to a different address, use the FASTMCP_HOST environmental variable
+**Host binding options:**
+- Use `--host 0.0.0.0` to bind to all interfaces
+- Use `--host 127.0.0.1` to bind only to localhost (default)
+
+See the full list of available `uvicorn` options and how to set them at [https://www.uvicorn.org/settings/]()
+
+### Selective App Enablement
+
+By default, all supported Nextcloud app APIs are enabled. You can selectively enable only specific apps using the `--enable-app` option:
+
+```bash
+# Available apps: notes, tables, webdav, calendar, contacts
+
+# Enable all apps (default behavior)
+uv run python -m nextcloud_mcp_server.app
+
+# Enable only Notes and Calendar
+uv run python -m nextcloud_mcp_server.app --enable-app notes --enable-app calendar
+
+# Enable only WebDAV for file operations
+uv run python -m nextcloud_mcp_server.app --enable-app webdav
+
+# Enable multiple apps by repeating the option
+uv run python -m nextcloud_mcp_server.app --enable-app notes --enable-app tables --enable-app contacts
+```
+
+This can be useful for:
+- Reducing memory usage and startup time
+- Limiting available functionality for security or organizational reasons
+- Testing specific app integrations
+- Running lightweight instances with only needed features
 
 ### Using Docker
 
 Mount your environment file when running the container:
 
 ```bash
-docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest
+# Run with all apps enabled (default)
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
+  --host 0.0.0.0
+
+# Run with only specific apps enabled
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
+  --host 0.0.0.0 --enable-app notes --enable-app calendar
+
+# Run with only WebDAV
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
+  --host 0.0.0.0 --enable-app webdav
 ```
 
 This will start the server and expose it on port 8000 of your local machine.
