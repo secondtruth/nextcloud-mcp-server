@@ -1,3 +1,10 @@
+## v0.10.0 (2025-09-10)
+
+### Feat
+
+- Add WebDAV resource copy functionality
+- Add WebDAV resource move/rename functionality
+
 ## v0.9.0 (2025-09-10)
 
 ### BREAKING CHANGE
