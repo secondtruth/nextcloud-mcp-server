@@ -1,3 +1,14 @@
+## v0.9.0 (2025-09-10)
+
+### BREAKING CHANGE
+
+- FASTMCP_-prefixed env vars have been replaced by CLI
+arguments. Refer to the README for updated usage.
+
+### Feat
+
+- **cli**: Replace `mcp run` with click CLI and runtime options
+
 ## v0.8.3 (2025-08-31)
 
 ### Fix
