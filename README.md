@@ -107,6 +107,8 @@ included? Feel free to open an issue, or contribute via a pull-request.
 | `nc_webdav_write_file` | Create or update files in NextCloud |
 | `nc_webdav_create_directory` | Create new directories |
 | `nc_webdav_delete_resource` | Delete files or directories |
+| `nc_webdav_move_resource` | Move or rename files and directories |
+| `nc_webdav_copy_resource` | Copy files and directories |
 
 ## Available Resources
 
@@ -174,6 +176,24 @@ await nc_webdav_write_file("NewProject/docs/notes.md", "# My Notes\n\nContent he
 
 # Delete a file or directory
 await nc_webdav_delete_resource("old_file.txt")
+
+# Move or rename a file
+await nc_webdav_move_resource("document.txt", "new_name.txt")
+
+# Move a file to another directory
+await nc_webdav_move_resource("document.txt", "Archive/document.txt")
+
+# Move a directory
+await nc_webdav_move_resource("Projects/OldProject", "Projects/NewProject")
+
+# Copy a file
+await nc_webdav_copy_resource("document.txt", "document_copy.txt")
+
+# Copy a file to another directory
+await nc_webdav_copy_resource("document.txt", "Backup/document.txt")
+
+# Copy a directory
+await nc_webdav_copy_resource("Projects/ProjectA", "Projects/ProjectA_Backup")
 ```
 
 ### Deck Project Management
