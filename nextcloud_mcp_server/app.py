@@ -18,6 +18,7 @@ from nextcloud_mcp_server.server import (
     configure_notes_tools,
     configure_tables_tools,
     configure_webdav_tools,
+    configure_deck_tools,
 )
 
 
@@ -65,6 +66,7 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
         "webdav": configure_webdav_tools,
         "calendar": configure_calendar_tools,
         "contacts": configure_contacts_tools,
+        "deck": configure_deck_tools,
     }
 
     # If no specific apps are specified, enable all
@@ -104,7 +106,7 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
     "--enable-app",
     "-e",
     multiple=True,
-    type=click.Choice(["notes", "tables", "webdav", "calendar", "contacts"]),
+    type=click.Choice(["notes", "tables", "webdav", "calendar", "contacts", "deck"]),
     help="Enable specific Nextcloud app APIs. Can be specified multiple times. If not specified, all apps are enabled.",
 )
 def run(

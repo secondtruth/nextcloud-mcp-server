@@ -14,6 +14,7 @@ from httpx import (
 from ..controllers.notes_search import NotesSearchController
 from .calendar import CalendarClient
 from .contacts import ContactsClient
+from .deck import DeckClient
 from .notes import NotesClient
 from .tables import TablesClient
 from .webdav import WebDAVClient
@@ -69,6 +70,7 @@ class NextcloudClient:
         self.tables = TablesClient(self._client, username)
         self.calendar = CalendarClient(self._client, username)
         self.contacts = ContactsClient(self._client, username)
+        self.deck = DeckClient(self._client, username)
 
         # Initialize controllers
         self._notes_search = NotesSearchController()

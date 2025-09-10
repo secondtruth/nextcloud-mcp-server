@@ -250,3 +250,149 @@ async def temporary_contact(nc_client: NextcloudClient, temporary_addressbook: s
             logger.error(
                 f"Unexpected error deleting temporary contact {contact_uid}: {e}"
             )
+
+
+@pytest.fixture
+async def temporary_board(nc_client: NextcloudClient):
+    """
+    Fixture to create a temporary deck board for tests and ensure its deletion afterward.
+    Yields the created board data dict.
+    """
+    board_id = None
+    unique_suffix = uuid.uuid4().hex[:8]
+    board_title = f"Temporary Test Board {unique_suffix}"
+    board_color = "FF0000"  # Red color
+    created_board_data = None
+
+    logger.info(f"Creating temporary deck board: {board_title}")
+    try:
+        created_board = await nc_client.deck.create_board(board_title, board_color)
+        board_id = created_board.id
+        created_board_data = {
+            "id": board_id,
+            "title": created_board.title,
+            "color": created_board.color,
+            "archived": getattr(created_board, "archived", False),
+        }
+
+        logger.info(f"Temporary board created with ID: {board_id}")
+        yield created_board_data
+
+    finally:
+        if board_id:
+            logger.info(f"Cleaning up temporary board ID: {board_id}")
+            try:
+                await nc_client.deck.delete_board(board_id)
+                logger.info(f"Successfully deleted temporary board ID: {board_id}")
+            except HTTPStatusError as e:
+                # Ignore 404 if board was already deleted by the test itself
+                if e.response.status_code not in [404, 403]:
+                    logger.error(f"HTTP error deleting temporary board {board_id}: {e}")
+                else:
+                    logger.warning(
+                        f"Temporary board {board_id} already deleted or access denied ({e.response.status_code})."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error deleting temporary board {board_id}: {e}"
+                )
+
+
+@pytest.fixture
+async def temporary_board_with_stack(nc_client: NextcloudClient, temporary_board: dict):
+    """
+    Fixture to create a temporary stack in a temporary board.
+    Yields a tuple: (board_data, stack_data).
+    Depends on the temporary_board fixture.
+    """
+    board_data = temporary_board
+    board_id = board_data["id"]
+    unique_suffix = uuid.uuid4().hex[:8]
+    stack_title = f"Test Stack {unique_suffix}"
+    stack_order = 1
+    stack = None
+
+    logger.info(f"Creating temporary stack in board ID: {board_id}")
+    try:
+        stack = await nc_client.deck.create_stack(board_id, stack_title, stack_order)
+        stack_data = {
+            "id": stack.id,
+            "title": stack.title,
+            "order": stack.order,
+            "boardId": board_id,
+        }
+
+        logger.info(f"Temporary stack created with ID: {stack.id}")
+        yield (board_data, stack_data)
+
+    finally:
+        # Clean up - delete stack
+        if stack and hasattr(stack, "id"):
+            logger.info(f"Cleaning up temporary stack ID: {stack.id}")
+            try:
+                await nc_client.deck.delete_stack(board_id, stack.id)
+                logger.info(f"Successfully deleted temporary stack ID: {stack.id}")
+            except HTTPStatusError as e:
+                if e.response.status_code not in [404, 403]:
+                    logger.error(f"HTTP error deleting temporary stack {stack.id}: {e}")
+                else:
+                    logger.warning(
+                        f"Temporary stack {stack.id} already deleted or access denied ({e.response.status_code})."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error deleting temporary stack {stack.id}: {e}"
+                )
+
+
+@pytest.fixture
+async def temporary_board_with_card(
+    nc_client: NextcloudClient, temporary_board_with_stack: tuple
+):
+    """
+    Fixture to create a temporary card in a temporary stack within a temporary board.
+    Yields a tuple: (board_data, stack_data, card_data).
+    Depends on the temporary_board_with_stack fixture.
+    """
+    board_data, stack_data = temporary_board_with_stack
+    board_id = board_data["id"]
+    stack_id = stack_data["id"]
+    unique_suffix = uuid.uuid4().hex[:8]
+    card_title = f"Test Card {unique_suffix}"
+    card_description = f"Test description for card {unique_suffix}"
+    card = None
+
+    logger.info(
+        f"Creating temporary card in stack ID: {stack_id}, board ID: {board_id}"
+    )
+    try:
+        card = await nc_client.deck.create_card(
+            board_id, stack_id, card_title, description=card_description
+        )
+        card_data = {
+            "id": card.id,
+            "title": card.title,
+            "description": card.description,
+            "stackId": stack_id,
+            "boardId": board_id,
+        }
+
+        logger.info(f"Temporary card created with ID: {card.id}")
+        yield (board_data, stack_data, card_data)
+
+    finally:
+        # Clean up - delete card
+        if card and hasattr(card, "id"):
+            logger.info(f"Cleaning up temporary card ID: {card.id}")
+            try:
+                await nc_client.deck.delete_card(board_id, stack_id, card.id)
+                logger.info(f"Successfully deleted temporary card ID: {card.id}")
+            except HTTPStatusError as e:
+                if e.response.status_code not in [404, 403]:
+                    logger.error(f"HTTP error deleting temporary card {card.id}: {e}")
+                else:
+                    logger.warning(
+                        f"Temporary card {card.id} already deleted or access denied ({e.response.status_code})."
+                    )
+            except Exception as e:
+                logger.error(f"Unexpected error deleting temporary card {card.id}: {e}")
