@@ -28,7 +28,7 @@ services:
       #- command: chown -R www-data:www-data /var/www/html && while ! nc -z db 3306; do sleep 1; echo sleeping; done
         #user: root
     ports:
-      - 8080:80
+      - 127.0.0.1:8080:80
     depends_on:
       - redis
       - db
@@ -48,7 +48,7 @@ services:
     build: .
     command: ["--host", "0.0.0.0", "--transport", "streamable-http"]
     ports:
-      - 8000:8000
+      - 127.0.0.1:8000:8000
     environment:
       - NEXTCLOUD_HOST=http://app:80
       - NEXTCLOUD_USERNAME=admin
