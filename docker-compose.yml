@@ -46,15 +46,15 @@ services:
 
   mcp:
     build: .
-    command: ["--host", "0.0.0.0", "--log-level", "debug"]
+    command: ["--host", "0.0.0.0"]
     ports:
       - 8000:8000
     environment:
       - NEXTCLOUD_HOST=http://app:80
       - NEXTCLOUD_USERNAME=admin
       - NEXTCLOUD_PASSWORD=admin
-    volumes:
-      - ./nextcloud_mcp_server:/app/nextcloud_mcp_server:ro
+    #volumes:
+      #- ./nextcloud_mcp_server:/app/nextcloud_mcp_server:ro
 
 volumes:
   nextcloud:
