@@ -1,3 +1,10 @@
+## v0.11.0 (2025-09-11)
+
+### Feat
+
+- **deck**: Add support for stack, cards, labels
+- **deck**: Initialize Deck app client/server
+
 ## v0.10.0 (2025-09-10)
 
 ### Feat
