@@ -1,3 +1,9 @@
+## v0.12.1 (2025-09-11)
+
+### Fix
+
+- **docker**: Provide --host 0.0.0.0 in default docker image
+
 ## v0.12.0 (2025-09-11)
 
 ### Feat
