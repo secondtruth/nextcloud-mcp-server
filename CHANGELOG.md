@@ -1,3 +1,9 @@
+## v0.12.0 (2025-09-11)
+
+### Feat
+
+- **server**: Add support for `streamable-http` transport type
+
 ## v0.11.1 (2025-09-11)
 
 ### Fix
