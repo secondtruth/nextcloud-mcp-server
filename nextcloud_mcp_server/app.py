@@ -101,16 +101,22 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
 
 
 @click.command()
-@click.option("--host", "-h", default="127.0.0.1")
-@click.option("--port", "-p", type=int, default=8000)
+@click.option("--host", "-h", default="127.0.0.1", show_default=True)
+@click.option("--port", "-p", type=int, default=8000, show_default=True)
 @click.option("--workers", "-w", type=int, default=None)
 @click.option("--reload", "-r", is_flag=True)
 @click.option(
     "--log-level",
+    default="info",
+    show_default=True,
     type=click.Choice(["critical", "error", "warning", "info", "debug", "trace"]),
 )
 @click.option(
-    "--transport", "-t", default="sse", type=click.Choice(["sse", "streamable-http"])
+    "--transport",
+    "-t",
+    default="sse",
+    show_default=True,
+    type=click.Choice(["sse", "streamable-http"]),
 )
 @click.option(
     "--enable-app",

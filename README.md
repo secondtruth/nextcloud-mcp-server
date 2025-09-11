@@ -29,7 +29,6 @@ included? Feel free to open an issue, or contribute via a pull-request.
 
 | Tool | Description |
 |------|-------------|
-| `nc_get_note` | Get a specific note by ID |
 | `nc_notes_create_note` | Create a new note with title, content, and category |
 | `nc_notes_update_note` | Update an existing note by ID |
 | `nc_notes_append_content` | Append content to an existing note with a clear separator |
@@ -67,9 +66,7 @@ included? Feel free to open an issue, or contribute via a pull-request.
 
 | Tool | Description |
 |------|-------------|
-| `deck_list_boards` | List all Nextcloud Deck boards with optional details and filtering |
 | `deck_create_board` | Create a new Deck board with title and color |
-| `deck_list_stacks` | List all stacks in a board |
 | `deck_create_stack` | Create a new stack in a board |
 | `deck_update_stack` | Update stack title and order |
 | `deck_delete_stack` | Delete a stack and all its cards |
@@ -404,6 +401,39 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 *   `NEXTCLOUD_HOST`: The full URL of your Nextcloud instance.
 *   `NEXTCLOUD_USERNAME`: Your Nextcloud username.
 *   `NEXTCLOUD_PASSWORD`: **Important:** It is highly recommended to use a dedicated Nextcloud App Password for security. You can generate one in your Nextcloud Security settings. Alternatively, you can use your regular login password, but this is less secure.
+
+## Transport Types
+
+The server supports two transport types for MCP communication:
+
+### Streamable HTTP (Recommended)
+The streamable-http transport is the recommended and modern transport type that provides improved streaming capabilities:
+
+```bash
+# Use streamable-http transport (recommended)
+uv run python -m nextcloud_mcp_server.app --transport streamable-http
+```
+
+### SSE (Server-Sent Events) - Deprecated
+⚠️ **Deprecated**: SSE transport is deprecated and will be removed in a future version. Please migrate to `streamable-http`.
+
+```bash
+# SSE transport (deprecated - for backwards compatibility only)
+uv run python -m nextcloud_mcp_server.app --transport sse
+```
+
+#### Docker Usage with Transports
+```bash
+# Using streamable-http transport (recommended)
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
+  --host 0.0.0.0 --transport streamable-http
+
+# Using SSE transport (deprecated)
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
+  --host 0.0.0.0 --transport sse
+```
+
+**Note:** When using MCP clients, ensure your client supports the transport type you've configured on the server. Most modern MCP clients support streamable-http.
 
 ## Running the Server
 
