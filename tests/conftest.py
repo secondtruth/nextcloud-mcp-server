@@ -6,7 +6,7 @@ from typing import Any, AsyncGenerator
 import pytest
 from httpx import HTTPStatusError
 from mcp import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 
 from nextcloud_mcp_server.client import NextcloudClient
 
@@ -39,18 +39,18 @@ async def nc_client() -> AsyncGenerator[NextcloudClient, Any]:
         await client.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 async def nc_mcp_client() -> AsyncGenerator[ClientSession, Any]:
     """
-    Fixture to create an MCP client session for integration tests.
+    Fixture to create an MCP client session for integration tests using streamable-http.
     """
-    logger.info("Creating SSE client")
-    sse_context = sse_client(url="http://127.0.0.1:8000/sse")
+    logger.info("Creating Streamable HTTP client")
+    streamable_context = streamablehttp_client("http://127.0.0.1:8000/mcp")
     session_context = None
 
     try:
-        read, write = await sse_context.__aenter__()
-        session_context = ClientSession(read, write)
+        read_stream, write_stream, _ = await streamable_context.__aenter__()
+        session_context = ClientSession(read_stream, write_stream)
         session = await session_context.__aenter__()
         await session.initialize()
         logger.info("MCP client session initialized successfully")
@@ -71,14 +71,14 @@ async def nc_mcp_client() -> AsyncGenerator[ClientSession, Any]:
                 logger.warning(f"Error closing session: {e}")
 
         try:
-            await sse_context.__aexit__(None, None, None)
+            await streamable_context.__aexit__(None, None, None)
         except RuntimeError as e:
             if "cancel scope" in str(e):
                 logger.debug(f"Ignoring cancel scope teardown issue: {e}")
             else:
-                logger.warning(f"Error closing SSE client: {e}")
+                logger.warning(f"Error closing streamable HTTP client: {e}")
         except Exception as e:
-            logger.warning(f"Error closing SSE client: {e}")
+            logger.warning(f"Error closing streamable HTTP client: {e}")
 
 
 @pytest.fixture

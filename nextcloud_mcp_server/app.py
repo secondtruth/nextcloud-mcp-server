@@ -2,7 +2,7 @@ import click
 import logging
 import uvicorn
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, AsyncExitStack
 from dataclasses import dataclass
 
 from starlette.applications import Starlette
@@ -83,9 +83,19 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
                 f"Unknown app: {app_name}. Available apps: {list(available_apps.keys())}"
             )
 
-    mcp_app = mcp.sse_app() if transport == "sse" else mcp.streamable_http_app()
+    if transport == "sse":
+        mcp_app = mcp.sse_app()
+        lifespan = None
+    else:
+        mcp_app = mcp.streamable_http_app()
 
-    app = Starlette(routes=[Mount("/", app=mcp_app)])
+        @asynccontextmanager
+        async def lifespan(app: Starlette):
+            async with AsyncExitStack() as stack:
+                await stack.enter_async_context(mcp.session_manager.run())
+                yield
+
+    app = Starlette(routes=[Mount("/", app=mcp_app)], lifespan=lifespan)
 
     return app
 
