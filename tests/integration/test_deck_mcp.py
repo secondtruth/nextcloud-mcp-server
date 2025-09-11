@@ -19,7 +19,7 @@ async def test_deck_mcp_connectivity(nc_mcp_client: ClientSession):
     tool_names = [tool.name for tool in tools.tools]
 
     # Verify expected deck tools are present
-    expected_deck_tools = ["deck_list_boards", "deck_create_board"]
+    expected_deck_tools = ["deck_create_board"]
 
     for expected_tool in expected_deck_tools:
         assert expected_tool in tool_names, (
@@ -108,33 +108,7 @@ async def test_deck_board_crud_workflow_mcp(
     # This was already done in step 3, so we'll just log confirmation
     logger.info("Board structure verified successfully")
 
-    # 5. List boards via MCP tool
-    logger.info("Listing boards via MCP tool")
-    list_result = await nc_mcp_client.call_tool("deck_list_boards", {})
-    assert list_result.isError is False, f"MCP board list failed: {list_result.content}"
-    boards_response = json.loads(list_result.content[0].text)
-    boards_data = boards_response["boards"]
-    assert isinstance(boards_data, list)
-
-    # Verify our board is in the list
-    board_ids = [board["id"] for board in boards_data]
-    assert board_id in board_ids, "Created board not found in list"
-    logger.info(f"Board {board_id} found in boards list")
-
-    # 6. List boards with details via MCP tool
-    logger.info("Listing boards with details via MCP tool")
-    list_details_result = await nc_mcp_client.call_tool(
-        "deck_list_boards", {"details": True}
-    )
-    assert list_details_result.isError is False, (
-        f"MCP board list with details failed: {list_details_result.content}"
-    )
-    detailed_boards_response = json.loads(list_details_result.content[0].text)
-    detailed_boards_data = detailed_boards_response["boards"]
-    assert isinstance(detailed_boards_data, list)
-    logger.info("Boards listed with details successfully")
-
-    # 7. Read boards list via MCP resource
+    # 5. Read boards list via MCP resource
     logger.info("Reading boards list via MCP resource")
     boards_resource_result = await nc_mcp_client.read_resource("nc://Deck/boards")
     assert len(boards_resource_result.contents) == 1, (
@@ -235,15 +209,14 @@ async def test_deck_workflow_integration_mcp(
     assert board_mcp_data["title"] == board_title
     logger.info("Board structure verified via MCP resource")
 
-    # 2. List boards via MCP and verify our board is there
-    logger.info("Listing boards with details via MCP tool")
-    list_result = await nc_mcp_client.call_tool("deck_list_boards", {"details": True})
-    boards_response = json.loads(list_result.content[0].text)
-    boards_data = boards_response["boards"]
+    # 2. List boards via MCP resource and verify our board is there
+    logger.info("Listing boards via MCP resource")
+    list_result = await nc_mcp_client.read_resource("nc://Deck/boards")
+    boards_data = json.loads(list_result.contents[0].text)
 
     board_found = any(board["id"] == board_id for board in boards_data)
-    assert board_found, "Board not found in detailed list"
-    logger.info("Board found in detailed boards list")
+    assert board_found, "Board not found in boards list"
+    logger.info("Board found in boards list")
 
     # 3. Verify board data matches via resource (already done in step 1)
     logger.info(f"Board data verification completed for board: {board_id}")

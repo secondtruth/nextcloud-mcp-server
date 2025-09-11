@@ -5,9 +5,7 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from nextcloud_mcp_server.client import NextcloudClient
 from nextcloud_mcp_server.models.deck import (
-    ListBoardsResponse,
     CreateBoardResponse,
-    ListStacksResponse,
     CreateStackResponse,
     StackOperationResponse,
     CreateCardResponse,
@@ -90,21 +88,6 @@ def configure_deck_tools(mcp: FastMCP):
         return label.model_dump()
 
     # Tools
-    @mcp.tool()
-    async def deck_list_boards(
-        ctx: Context, details: bool = False, if_modified_since: Optional[str] = None
-    ) -> ListBoardsResponse:
-        """List all Nextcloud Deck boards
-
-        Args:
-            details: Enhance boards with details about labels, stacks and users
-            if_modified_since: Limit results to entities changed after this time (IMF-fixdate format)
-        """
-        client: NextcloudClient = ctx.request_context.lifespan_context.client
-        boards = await client.deck.get_boards(
-            details=details, if_modified_since=if_modified_since
-        )
-        return ListBoardsResponse(boards=boards, total=len(boards))
 
     @mcp.tool()
     async def deck_create_board(
@@ -121,19 +104,6 @@ def configure_deck_tools(mcp: FastMCP):
         return CreateBoardResponse(id=board.id, title=board.title, color=board.color)
 
     # Stack Tools
-    @mcp.tool()
-    async def deck_list_stacks(
-        ctx: Context, board_id: int, if_modified_since: Optional[str] = None
-    ) -> ListStacksResponse:
-        """List all stacks in a Nextcloud Deck board
-
-        Args:
-            board_id: The ID of the board
-            if_modified_since: Limit results to entities changed after this time (IMF-fixdate format)
-        """
-        client: NextcloudClient = ctx.request_context.lifespan_context.client
-        stacks = await client.deck.get_stacks(board_id, if_modified_since)
-        return ListStacksResponse(stacks=stacks, total=len(stacks))
 
     @mcp.tool()
     async def deck_create_stack(

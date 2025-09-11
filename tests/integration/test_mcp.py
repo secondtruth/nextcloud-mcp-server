@@ -51,7 +51,6 @@ async def test_mcp_connectivity(nc_mcp_client: ClientSession):
         "nc_calendar_find_availability",
         "nc_calendar_bulk_operations",
         "nc_calendar_manage_calendar",
-        "deck_list_boards",
         "deck_create_board",
     ]
 
