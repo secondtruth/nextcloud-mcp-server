@@ -131,14 +131,14 @@ uv run python -m nextcloud_mcp_server.app --transport sse
 ```
 
 #### Docker Usage with Transports
+
 ```bash
+# Using SSE transport (default - deprecated)
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest
+
 # Using streamable-http transport (recommended)
 docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --host 0.0.0.0 --transport streamable-http
-
-# Using SSE transport (deprecated)
-docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --host 0.0.0.0 --transport sse
+  --transport streamable-http
 ```
 
 **Note:** When using MCP clients, ensure your client supports the transport type you've configured on the server. Most modern MCP clients support streamable-http.
@@ -154,8 +154,8 @@ Ensure your environment variables are loaded, then run the server. You have seve
 # Load environment variables from your .env file
 export $(grep -v '^#' .env | xargs)
 
-# Or run the app module directly with custom options
-uv run python -m nextcloud_mcp_server.app --host 0.0.0.0 --port 8080 --log-level info --reload
+# Run the app module directly with custom options
+uv run python -m nextcloud_mcp_server.app --host 0.0.0.0 --port 8080 --log-level info
 
 # Enable only specific Nextcloud app APIs
 uv run python -m nextcloud_mcp_server.app --enable-app notes --enable-app calendar
@@ -217,16 +217,15 @@ Mount your environment file when running the container:
 
 ```bash
 # Run with all apps enabled (default)
-docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --host 0.0.0.0
+docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest
 
 # Run with only specific apps enabled
 docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --host 0.0.0.0 --enable-app notes --enable-app calendar
+  --enable-app notes --enable-app calendar
 
 # Run with only WebDAV
 docker run -p 127.0.0.1:8000:8000 --env-file .env --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --host 0.0.0.0 --enable-app webdav
+  --enable-app webdav
 ```
 
 This will start the server and expose it on port 8000 of your local machine.

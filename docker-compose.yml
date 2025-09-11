@@ -46,7 +46,7 @@ services:
 
   mcp:
     build: .
-    command: ["--host", "0.0.0.0", "--transport", "streamable-http"]
+    command: ["--transport", "streamable-http"]
     ports:
       - 127.0.0.1:8000:8000
     environment:
