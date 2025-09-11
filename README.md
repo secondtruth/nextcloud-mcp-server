@@ -23,91 +23,7 @@ The server provides integration with multiple Nextcloud apps, enabling LLMs to i
 Is there a Nextcloud app not present in this list that you'd like to be
 included? Feel free to open an issue, or contribute via a pull-request.
 
-## Available Tools
-
-### Notes Tools
-
-| Tool | Description |
-|------|-------------|
-| `nc_notes_create_note` | Create a new note with title, content, and category |
-| `nc_notes_update_note` | Update an existing note by ID |
-| `nc_notes_append_content` | Append content to an existing note with a clear separator |
-| `nc_notes_delete_note` | Delete a note by ID |
-| `nc_notes_search_notes` | Search notes by title or content |
-
-### Calendar Tools
-
-| Tool | Description |
-|------|-------------|
-| `nc_calendar_list_calendars` | List all available calendars for the user |
-| `nc_calendar_create_event` | Create a comprehensive calendar event with full feature support (recurring, reminders, attendees, etc.) |
-| `nc_calendar_list_events` | **Enhanced:** List events with advanced filtering (min attendees, duration, categories, status, search across all calendars) |
-| `nc_calendar_get_event` | Get detailed information about a specific event |
-| `nc_calendar_update_event` | Update any aspect of an existing event |
-| `nc_calendar_delete_event` | Delete a calendar event |
-| `nc_calendar_create_meeting` | Quick meeting creation with smart defaults |
-| `nc_calendar_get_upcoming_events` | Get upcoming events in the next N days |
-| `nc_calendar_find_availability` | **New:** Intelligent availability finder - find free time slots for meetings with attendee conflict detection |
-| `nc_calendar_bulk_operations` | **New:** Bulk update, delete, or move events matching filter criteria |
-| `nc_calendar_manage_calendar` | **New:** Create, delete, and manage calendar properties |
-
-### Contacts Tools
-
-| Tool | Description |
-|------|-------------|
-| `nc_contacts_list_addressbooks` | List all available addressbooks for the user |
-| `nc_contacts_list_contacts` | List all contacts in a specific addressbook |
-| `nc_contacts_create_addressbook` | Create a new addressbook |
-| `nc_contacts_delete_addressbook` | Delete an addressbook |
-| `nc_contacts_create_contact` | Create a new contact in an addressbook |
-| `nc_contacts_delete_contact` | Delete a contact from an addressbook |
-
-### Deck Tools
-
-| Tool | Description |
-|------|-------------|
-| `deck_create_board` | Create a new Deck board with title and color |
-| `deck_create_stack` | Create a new stack in a board |
-| `deck_update_stack` | Update stack title and order |
-| `deck_delete_stack` | Delete a stack and all its cards |
-| `deck_create_card` | Create a new card in a stack with full options (title, description, due date, etc.) |
-| `deck_update_card` | Update any aspect of a card (title, description, owner, order, etc.) |
-| `deck_delete_card` | Delete a card |
-| `deck_archive_card` | Archive a card |
-| `deck_unarchive_card` | Unarchive a card |
-| `deck_reorder_card` | Move/reorder cards within or between stacks |
-| `deck_create_label` | Create a new label in a board |
-| `deck_update_label` | Update label title and color |
-| `deck_delete_label` | Delete a label |
-| `deck_assign_label_to_card` | Assign a label to a card |
-| `deck_remove_label_from_card` | Remove a label from a card |
-| `deck_assign_user_to_card` | Assign a user to a card |
-| `deck_unassign_user_from_card` | Remove a user assignment from a card |
-
-### Tables Tools
-
-| Tool | Description |
-|------|-------------|
-| `nc_tables_list_tables` | List all tables available to the user |
-| `nc_tables_get_schema` | Get the schema/structure of a specific table including columns and views |
-| `nc_tables_read_table` | Read rows from a table with optional pagination |
-| `nc_tables_insert_row` | Insert a new row into a table |
-| `nc_tables_update_row` | Update an existing row in a table |
-| `nc_tables_delete_row` | Delete a row from a table |
-
-### WebDAV File System Tools
-
-| Tool | Description |
-|------|-------------|
-| `nc_webdav_list_directory` | List files and directories in any NextCloud path |
-| `nc_webdav_read_file` | Read file content (text files decoded, binary as base64) |
-| `nc_webdav_write_file` | Create or update files in NextCloud |
-| `nc_webdav_create_directory` | Create new directories |
-| `nc_webdav_delete_resource` | Delete files or directories |
-| `nc_webdav_move_resource` | Move or rename files and directories |
-| `nc_webdav_copy_resource` | Copy files and directories |
-
-## Available Resources
+## Available Tools & Resources
 
 Resources provide read-only access to data for browsing and discovery. Unlike tools, resources are automatically listed by MCP clients and enable LLMs to explore your Nextcloud data structure.
 
@@ -118,17 +34,6 @@ Resources provide read-only access to data for browsing and discovery. Unlike to
 | `notes://settings` | Access Notes app settings |
 | `nc://Notes/{note_id}/attachments/{attachment_filename}` | Access attachments for notes |
 
-### Deck Resources
-| Resource | Description |
-|----------|-------------|
-| `nc://Deck/boards` | List all deck boards |
-| `nc://Deck/boards/{board_id}` | Get details of a specific board |
-| `nc://Deck/boards/{board_id}/stacks` | List all stacks in a board |
-| `nc://Deck/boards/{board_id}/stacks/{stack_id}` | Get details of a specific stack |
-| `nc://Deck/boards/{board_id}/stacks/{stack_id}/cards` | List all cards in a stack |
-| `nc://Deck/boards/{board_id}/stacks/{stack_id}/cards/{card_id}` | Get details of a specific card |
-| `nc://Deck/boards/{board_id}/labels` | List all labels in a board |
-| `nc://Deck/boards/{board_id}/labels/{label_id}` | Get details of a specific label |
 
 ### Tools vs Resources
 
@@ -144,231 +49,12 @@ Resources provide read-only access to data for browsing and discovery. Unlike to
 - Raw data format for exploration
 - Examples: `nc://Deck/boards/{board_id}`, `nc://Deck/boards/{board_id}/stacks`
 
-### WebDAV File System Access
-
-The server provides complete file system access to your NextCloud instance, enabling you to:
-
-- Browse any directory structure
-- Read and write files of any type
-- Create and delete directories
-- Manage your NextCloud files directly through LLM interactions
-
-**Usage Examples:**
-
-```python
-# List files in root directory
-await nc_webdav_list_directory("")
-
-# Browse a specific folder
-await nc_webdav_list_directory("Documents/Projects")
-
-# Read a text file
-content = await nc_webdav_read_file("Documents/readme.txt")
-
-# Create a new directory
-await nc_webdav_create_directory("NewProject/docs")
-
-# Write content to a file
-await nc_webdav_write_file("NewProject/docs/notes.md", "# My Notes\n\nContent here...")
-
-# Delete a file or directory
-await nc_webdav_delete_resource("old_file.txt")
-
-# Move or rename a file
-await nc_webdav_move_resource("document.txt", "new_name.txt")
-
-# Move a file to another directory
-await nc_webdav_move_resource("document.txt", "Archive/document.txt")
-
-# Move a directory
-await nc_webdav_move_resource("Projects/OldProject", "Projects/NewProject")
-
-# Copy a file
-await nc_webdav_copy_resource("document.txt", "document_copy.txt")
-
-# Copy a file to another directory
-await nc_webdav_copy_resource("document.txt", "Backup/document.txt")
-
-# Copy a directory
-await nc_webdav_copy_resource("Projects/ProjectA", "Projects/ProjectA_Backup")
-```
-
-### Deck Project Management
-
-The server provides complete Nextcloud Deck integration, enabling you to manage projects, tasks, and workflows:
-
-- Create and manage boards, stacks, and cards
-- Organize tasks with labels and user assignments
-- Archive/unarchive cards and reorder within or between stacks
-- Full CRUD operations on all Deck entities
-- Browse project structure through hierarchical resources
-
-**Usage Examples:**
-
-```python
-# Create a new project board
-await deck_create_board(title="Website Redesign", color="1976D2")
-
-# Create workflow stacks
-await deck_create_stack(board_id=1, title="To Do", order=1)
-await deck_create_stack(board_id=1, title="In Progress", order=2)
-await deck_create_stack(board_id=1, title="Done", order=3)
-
-# Create task cards with details
-await deck_create_card(
-    board_id=1,
-    stack_id=1,
-    title="Design new homepage",
-    description="Create mockups for the new homepage layout",
-    type="plain",
-    order=1,
-    duedate="2025-08-15T17:00:00"
-)
-
-# Create and assign labels for organization
-await deck_create_label(board_id=1, title="High Priority", color="F44336")
-await deck_create_label(board_id=1, title="UI/UX", color="9C27B0")
-
-# Assign labels and users to cards
-await deck_assign_label_to_card(board_id=1, stack_id=1, card_id=1, label_id=1)
-await deck_assign_user_to_card(board_id=1, stack_id=1, card_id=1, user_id="designer")
-
-# Move cards through workflow
-await deck_reorder_card(
-    board_id=1,
-    stack_id=1,        # From "To Do"
-    card_id=1,
-    order=1,
-    target_stack_id=2  # To "In Progress"
-)
-
-# Update task progress
-await deck_update_card(
-    board_id=1,
-    stack_id=2,
-    card_id=1,
-    description="Homepage mockups completed, starting development",
-    order=1
-)
-
-# Complete tasks
-await deck_reorder_card(
-    board_id=1,
-    stack_id=2,        # From "In Progress"  
-    card_id=1,
-    order=1,
-    target_stack_id=3  # To "Done"
-)
-
-# Archive completed cards
-await deck_archive_card(board_id=1, stack_id=3, card_id=1)
-```
-
-### Calendar Integration
-
-The server provides comprehensive calendar integration through CalDAV, enabling you to:
-
-- List all available calendars
-- Create, read, update, and delete calendar events  
-- Handle recurring events with RRULE support
-- Manage event reminders and notifications
-- Support all-day and timed events
-- Handle attendees and meeting invitations
-- Organize events with categories and priorities
-
-**Usage Examples:**
-
-```python
-# List available calendars
-calendars = await nc_calendar_list_calendars()
-
-# Create a simple event
-await nc_calendar_create_event(
-    calendar_name="personal",
-    title="Team Meeting", 
-    start_datetime="2025-07-28T14:00:00",
-    end_datetime="2025-07-28T15:00:00",
-    description="Weekly team sync",
-    location="Conference Room A"
-)
-
-# Create a recurring weekly meeting
-await nc_calendar_create_event(
-    calendar_name="work",
-    title="Weekly Standup",
-    start_datetime="2025-07-28T09:00:00", 
-    end_datetime="2025-07-28T09:30:00",
-    recurring=True,
-    recurrence_rule="FREQ=WEEKLY;BYDAY=MO"
-)
-
-# Quick meeting creation
-await nc_calendar_create_meeting(
-    title="Client Call",
-    date="2025-07-28",
-    time="15:00",
-    duration_minutes=60,
-    attendees="client@example.com,colleague@company.com"
-)
-
-# Get upcoming events  
-events = await nc_calendar_get_upcoming_events(days_ahead=7)
-
-# Advanced search - find all meetings with 5+ attendees lasting 2+ hours
-long_meetings = await nc_calendar_list_events(
-    calendar_name="",  # Search all calendars
-    search_all_calendars=True,
-    start_date="2025-07-01",
-    end_date="2025-07-31", 
-    min_attendees=5,
-    min_duration_minutes=120,
-    title_contains="meeting"
-)
-
-# Find availability for a 1-hour meeting with specific attendees
-availability = await nc_calendar_find_availability(
-    duration_minutes=60,
-    attendees="sarah@company.com,mike@company.com",
-    date_range_start="2025-07-28",
-    date_range_end="2025-08-04",
-    business_hours_only=True,
-    exclude_weekends=True,
-    preferred_times="09:00-12:00,14:00-17:00"
-)
-
-# Bulk update all team meetings to new location
-bulk_result = await nc_calendar_bulk_operations(
-    operation="update",
-    title_contains="team meeting",
-    start_date="2025-08-01", 
-    end_date="2025-08-31",
-    new_location="Conference Room B",
-    new_reminder_minutes=15
-)
-
-# Create a new project calendar
-new_calendar = await nc_calendar_manage_calendar(
-    action="create",
-    calendar_name="project-alpha",
-    display_name="Project Alpha Calendar",
-    description="Calendar for Project Alpha team",
-    color="#FF5722"
-)
-```
-
-### Note Attachments
-
-This server supports adding and retrieving note attachments via WebDAV. Please note the following behavior regarding attachments:
-
-* When a note is deleted, its attachments remain in the system. This matches the behavior of the official Nextcloud Notes app.
-* Orphaned attachments (attachments whose parent notes have been deleted) may accumulate over time.
-* WebDAV permissions must be properly configured for attachment operations to work correctly.
 
 ## Installation
 
 ### Prerequisites
 
-*   Python 3.8+
+*   Python 3.11+
 *   Access to a Nextcloud instance
 
 ### Local Installation
@@ -381,6 +67,27 @@ This server supports adding and retrieving note attachments via WebDAV. Please n
 2.  Install the package dependencies (if running via CLI):
     ```bash
     uv sync
+    ```
+
+3.  Run the CLI --help command to see all available options
+    ```bash
+    $ uv run python -m nextcloud_mcp_server.app --help
+    Usage: python -m nextcloud_mcp_server.app [OPTIONS]
+
+    Options:
+      -h, --host TEXT                 [default: 127.0.0.1]
+      -p, --port INTEGER              [default: 8000]
+      -w, --workers INTEGER
+      -r, --reload
+      -l, --log-level [critical|error|warning|info|debug|trace]
+                                      [default: info]
+      -t, --transport [sse|streamable-http]
+                                      [default: sse]
+      -e, --enable-app [notes|tables|webdav|calendar|contacts|deck]
+                                      Enable specific Nextcloud app APIs. Can be
+                                      specified multiple times. If not specified,
+                                      all apps are enabled.
+      --help                          Show this message and exit.
     ```
 
 ### Docker
@@ -407,7 +114,7 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 The server supports two transport types for MCP communication:
 
 ### Streamable HTTP (Recommended)
-The streamable-http transport is the recommended and modern transport type that provides improved streaming capabilities:
+The `streamable-http` transport is the recommended and modern transport type that provides improved streaming capabilities:
 
 ```bash
 # Use streamable-http transport (recommended)
@@ -415,7 +122,8 @@ uv run python -m nextcloud_mcp_server.app --transport streamable-http
 ```
 
 ### SSE (Server-Sent Events) - Deprecated
-⚠️ **Deprecated**: SSE transport is deprecated and will be removed in a future version. Please migrate to `streamable-http`.
+> [!WARNING]
+> ⚠️ **Deprecated**: SSE transport is deprecated and will be removed in a future version of the MCP spec. SSE will be supported for the foreseable future, but users are encouraged to switch to the new transport type. Please migrate to `streamable-http`.
 
 ```bash
 # SSE transport (deprecated - for backwards compatibility only)

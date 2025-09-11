@@ -107,6 +107,7 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
 @click.option("--reload", "-r", is_flag=True)
 @click.option(
     "--log-level",
+    "-l",
     default="info",
     show_default=True,
     type=click.Choice(["critical", "error", "warning", "info", "debug", "trace"]),
