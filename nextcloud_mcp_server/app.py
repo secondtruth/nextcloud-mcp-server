@@ -86,7 +86,7 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
     if transport == "sse":
         mcp_app = mcp.sse_app()
         lifespan = None
-    else:
+    elif transport in ("http", "streamable-http"):
         mcp_app = mcp.streamable_http_app()
 
         @asynccontextmanager
@@ -117,7 +117,7 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
     "-t",
     default="sse",
     show_default=True,
-    type=click.Choice(["sse", "streamable-http"]),
+    type=click.Choice(["sse", "streamable-http", "http"]),
 )
 @click.option(
     "--enable-app",
