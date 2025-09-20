@@ -1,3 +1,9 @@
+## v0.12.2 (2025-09-20)
+
+### Refactor
+
+- Add `http` to --transport option
+
 ## v0.12.1 (2025-09-11)
 
 ### Fix
