@@ -2,7 +2,6 @@
 
 import logging
 from mcp import ClientSession
-from mcp.shared.exceptions import McpError
 
 import pytest
 
@@ -10,11 +9,15 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
-async def test_missing_note_resource_error(nc_mcp_client: ClientSession):
-    """Test that accessing a non-existent note resource returns proper error."""
-    # Try to get a non-existent note via resource - should raise McpError with improved message
-    with pytest.raises(McpError, match=r"Note 999999 not found"):
-        await nc_mcp_client.read_resource("nc://Notes/999999")
+async def test_missing_note_tool_error(nc_mcp_client: ClientSession):
+    """Test that accessing a non-existent note via tool returns proper error."""
+    # Try to get a non-existent note via tool - should return error response
+    response = await nc_mcp_client.call_tool("nc_notes_get_note", {"note_id": 999999})
+
+    # Should return error response (not raise exception) for tools
+    assert response is not None
+    assert response.isError is True
+    assert "Note 999999 not found" in response.content[0].text
 
 
 @pytest.mark.integration
