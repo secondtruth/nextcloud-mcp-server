@@ -27,9 +27,6 @@ def configure_notes_tools(mcp: FastMCP):
         ctx: Context = (
             mcp.get_context()
         )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-        await ctx.warning(
-            "This resource is deprecated and will be removed in a future version"
-        )
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         settings_data = await client.notes.get_settings()
         return NotesSettings(**settings_data)

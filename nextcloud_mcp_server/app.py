@@ -56,9 +56,6 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
         ctx: Context = (
             mcp.get_context()
         )  # https://github.com/modelcontextprotocol/python-sdk/issues/244
-        await ctx.warning(
-            "This resource is deprecated and will be removed in a future version"
-        )
         client: NextcloudClient = ctx.request_context.lifespan_context.client
         return await client.capabilities()
 
