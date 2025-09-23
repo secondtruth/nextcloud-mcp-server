@@ -1,3 +1,9 @@
+## v0.12.3 (2025-09-23)
+
+### Refactor
+
+- Add tools for all resources to enable tool-only workflows
+
 ## v0.12.2 (2025-09-20)
 
 ### Refactor
