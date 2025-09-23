@@ -32,7 +32,7 @@ def configure_notes_tools(mcp: FastMCP):
         return NotesSettings(**settings_data)
 
     @mcp.resource("nc://Notes/{note_id}/attachments/{attachment_filename}")
-    async def nc_notes_get_attachment(note_id: int, attachment_filename: str):
+    async def nc_notes_get_attachment_resource(note_id: int, attachment_filename: str):
         """Get a specific attachment from a note"""
         ctx: Context = mcp.get_context()
         client: NextcloudClient = ctx.request_context.lifespan_context.client
@@ -53,7 +53,7 @@ def configure_notes_tools(mcp: FastMCP):
         }
 
     @mcp.resource("nc://Notes/{note_id}")
-    async def nc_get_note(note_id: int):
+    async def nc_get_note_resource(note_id: int):
         """Get user note using note id"""
 
         ctx: Context = mcp.get_context()
@@ -129,7 +129,7 @@ def configure_notes_tools(mcp: FastMCP):
         """Update an existing note's title, content, or category.
 
         REQUIRED: etag parameter must be provided to prevent overwriting concurrent changes.
-        Get the current ETag by first retrieving the note using nc://Notes/{note_id} resource.
+        Get the current ETag by first retrieving the note using nc_notes_get_note tool.
         If the note has been modified by someone else since you retrieved it,
         the update will fail with a 412 error."""
         logger.info("Updating note %s", note_id)
@@ -255,6 +255,66 @@ def configure_notes_tools(mcp: FastMCP):
                     ErrorData(
                         code=-1,
                         message=f"Search failed: server error ({e.response.status_code})",
+                    )
+                )
+
+    @mcp.tool()
+    async def nc_notes_get_note(note_id: int, ctx: Context) -> Note:
+        """Get a specific note by its ID"""
+        client: NextcloudClient = ctx.request_context.lifespan_context.client
+        try:
+            note_data = await client.notes.get_note(note_id)
+            return Note(**note_data)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise McpError(ErrorData(code=-1, message=f"Note {note_id} not found"))
+            elif e.response.status_code == 403:
+                raise McpError(
+                    ErrorData(code=-1, message=f"Access denied to note {note_id}")
+                )
+            else:
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to retrieve note {note_id}: {e.response.reason_phrase}",
+                    )
+                )
+
+    @mcp.tool()
+    async def nc_notes_get_attachment(
+        note_id: int, attachment_filename: str, ctx: Context
+    ) -> dict[str, str]:
+        """Get a specific attachment from a note"""
+        client: NextcloudClient = ctx.request_context.lifespan_context.client
+        try:
+            content, mime_type = await client.webdav.get_note_attachment(
+                note_id=note_id, filename=attachment_filename
+            )
+            return {
+                "uri": f"nc://Notes/{note_id}/attachments/{attachment_filename}",
+                "mimeType": mime_type,
+                "data": content,
+            }
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Attachment {attachment_filename} not found for note {note_id}",
+                    )
+                )
+            elif e.response.status_code == 403:
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Access denied to attachment {attachment_filename} for note {note_id}",
+                    )
+                )
+            else:
+                raise McpError(
+                    ErrorData(
+                        code=-1,
+                        message=f"Failed to retrieve attachment: {e.response.reason_phrase}",
                     )
                 )
 
