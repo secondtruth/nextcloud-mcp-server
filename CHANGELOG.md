@@ -1,3 +1,9 @@
+## v0.12.4 (2025-09-25)
+
+### Fix
+
+- **deps**: update dependency mcp to >=1.15,<1.16
+
 ## v0.12.3 (2025-09-23)
 
 ### Refactor
