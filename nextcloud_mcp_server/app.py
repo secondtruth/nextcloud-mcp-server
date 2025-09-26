@@ -67,7 +67,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
             await client.close()
 
 
-def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
+def get_app(transport: str = "sse", enabled_apps: list[str] | None = None, multi_user: bool | None = None):
     setup_logging()
 
     # Create an MCP server
@@ -122,7 +122,12 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
         app = Starlette(routes=[Mount("/", app=mcp_app)], lifespan=lifespan)
         
         # Add multi-user middleware if enabled
-        multi_user_mode = os.environ.get("NCMCP_MULTI_USER", "false").lower() == "true"
+        # CLI flag takes precedence over environment variable
+        if multi_user is not None:
+            multi_user_mode = multi_user
+        else:
+            multi_user_mode = os.environ.get("NCMCP_MULTI_USER", "false").lower() == "true"
+        
         if multi_user_mode:
             from nextcloud_mcp_server.middleware import MultiUserAuthMiddleware
             nextcloud_host = os.environ.get("NEXTCLOUD_HOST", "")
@@ -159,6 +164,11 @@ def get_app(transport: str = "sse", enabled_apps: list[str] | None = None):
     type=click.Choice(["notes", "tables", "webdav", "calendar", "contacts", "deck"]),
     help="Enable specific Nextcloud app APIs. Can be specified multiple times. If not specified, all apps are enabled.",
 )
+@click.option(
+    "--multi-user",
+    is_flag=True,
+    help="Enable multi-user mode with per-request authentication. Takes precedence over NCMCP_MULTI_USER environment variable.",
+)
 def run(
     host: str,
     port: int,
@@ -167,14 +177,19 @@ def run(
     log_level: str,
     transport: str,
     enable_app: tuple[str, ...],
+    multi_user: bool,
 ):
     enabled_apps = list(enable_app) if enable_app else None
+    
+    # Set environment variable if CLI flag is provided (takes precedence)
+    if multi_user:
+        os.environ["NCMCP_MULTI_USER"] = "true"
 
     if reload or workers:
         app = "nextcloud_mcp_server.app:get_app"
         factory = True
     else:
-        app = get_app(transport=transport, enabled_apps=enabled_apps)
+        app = get_app(transport=transport, enabled_apps=enabled_apps, multi_user=multi_user)
         factory = False
 
     uvicorn.run(

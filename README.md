@@ -111,7 +111,7 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 
 ### Multi-User Mode (Advanced)
 
-By default the server runs in single-user mode and authenticates to Nextcloud using the environment credentials above. To allow a single MCP server to handle multiple Nextcloud users concurrently, enable the optional multi-user mode:
+The server supports an optional multi-user mode that allows a single MCP server to handle multiple Nextcloud users concurrently:
 
 ```bash
 export NEXTCLOUD_HOST="https://your.nextcloud.instance.com"
@@ -119,7 +119,14 @@ export NCMCP_MULTI_USER=true
 uv run python -m nextcloud_mcp_server.app --transport streamable-http
 ```
 
-When `NCMCP_MULTI_USER=true`:
+Or use the CLI flag (which takes precedence over the environment variable):
+
+```bash
+export NEXTCLOUD_HOST="https://your.nextcloud.instance.com"
+uv run python -m nextcloud_mcp_server.app --transport streamable-http --multi-user
+```
+
+When multi-user mode is enabled:
 
 * Only `NEXTCLOUD_HOST` is used at startup. `NEXTCLOUD_USERNAME` and `NEXTCLOUD_PASSWORD` are ignored for incoming requests.
 * Every HTTP request must include an `Authorization: Basic <base64(username:app-password)>` header. Use dedicated Nextcloud App Passwords for each user.
@@ -132,10 +139,16 @@ When `NCMCP_MULTI_USER=true`:
 For Docker-based deployments:
 
 ```bash
+# Using environment variable
 docker run -p 127.0.0.1:8000:8000 \
   --env NEXTCLOUD_HOST="https://your.nextcloud.instance.com" \
   --env NCMCP_MULTI_USER=true \
   ghcr.io/cbcoutinho/nextcloud-mcp-server:latest --transport streamable-http
+
+# Using CLI flag (takes precedence)
+docker run -p 127.0.0.1:8000:8000 \
+  --env NEXTCLOUD_HOST="https://your.nextcloud.instance.com" \
+  ghcr.io/cbcoutinho/nextcloud-mcp-server:latest --transport streamable-http --multi-user
 ```
 
 If you want to run the integration suite against two accounts in multi-user mode, provide additional credentials via `NEXTCLOUD_ALT_USERNAME` and `NEXTCLOUD_ALT_PASSWORD`.
