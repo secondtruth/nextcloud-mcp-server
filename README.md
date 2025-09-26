@@ -109,83 +109,36 @@ NEXTCLOUD_PASSWORD=your_nextcloud_app_password_or_login_password
 *   `NEXTCLOUD_USERNAME`: Your Nextcloud username.
 *   `NEXTCLOUD_PASSWORD`: **Important:** It is highly recommended to use a dedicated Nextcloud App Password for security. You can generate one in your Nextcloud Security settings. Alternatively, you can use your regular login password, but this is less secure.
 
-## Multi-User Mode (Advanced)
+### Multi-User Mode (Advanced)
 
-The server supports an optional multi-user mode that allows a single server instance to serve multiple Nextcloud users concurrently. This is useful for shared deployments or when different requests need to authenticate as different users.
-
-### Single-User Mode (Default)
-
-By default, the server operates in single-user mode using the credentials from environment variables:
-
-```dotenv
-# Single-user mode (default)
-NEXTCLOUD_HOST=https://your.nextcloud.instance.com
-NEXTCLOUD_USERNAME=your_nextcloud_username
-NEXTCLOUD_PASSWORD=your_nextcloud_app_password
-```
-
-### Enabling Multi-User Mode
-
-To enable multi-user mode, set the `NCMCP_MULTI_USER` environment variable:
-
-```dotenv
-# Multi-user mode configuration
-NCMCP_MULTI_USER=true
-NEXTCLOUD_HOST=https://your.nextcloud.instance.com
-# NEXTCLOUD_USERNAME and NEXTCLOUD_PASSWORD are ignored in multi-user mode
-```
-
-### Authentication in Multi-User Mode
-
-When multi-user mode is enabled:
-
-1. **Transport Limitation**: Only `streamable-http` transport supports multi-user mode. SSE transport ignores multi-user settings.
-
-2. **Per-Request Authentication**: Each request must include an `Authorization` header with Basic Authentication:
-   ```
-   Authorization: Basic <base64(username:app-password)>
-   ```
-
-3. **Credential Requirements**: 
-   - Use Nextcloud usernames and App Passwords (recommended)
-   - Regular passwords are supported but App Passwords are more secure
-   - Each user needs appropriate permissions for the Nextcloud apps they'll access
-
-### Example Usage
+By default the server runs in single-user mode and authenticates to Nextcloud using the environment credentials above. To allow a single MCP server to handle multiple Nextcloud users concurrently, enable the optional multi-user mode:
 
 ```bash
-# Start server in multi-user mode
+export NEXTCLOUD_HOST="https://your.nextcloud.instance.com"
 export NCMCP_MULTI_USER=true
-export NEXTCLOUD_HOST=https://your.nextcloud.instance.com
 uv run python -m nextcloud_mcp_server.app --transport streamable-http
 ```
 
-Client requests must then include authentication headers:
-```bash
-# Example with curl (base64 encoding of "username:app-password")
-curl -X POST http://localhost:8000/mcp \
-  -H "Authorization: Basic dXNlcm5hbWU6YXBwLXBhc3N3b3Jk" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
-```
+When `NCMCP_MULTI_USER=true`:
 
-### Docker Multi-User Mode
+* Only `NEXTCLOUD_HOST` is used at startup. `NEXTCLOUD_USERNAME` and `NEXTCLOUD_PASSWORD` are ignored for incoming requests.
+* Every HTTP request must include an `Authorization: Basic <base64(username:app-password)>` header. Use dedicated Nextcloud App Passwords for each user.
+* The server creates and disposes a Nextcloud client for each request and automatically redacts the `Authorization` header from logs.
+* Multi-user authentication is currently supported on the `streamable-http` transport.
+
+> [!TIP]
+> Always run the server behind HTTPS (or terminate TLS upstream) when exposing multi-user mode, and consider additional rate limiting or IP allowlisting for public deployments.
+
+For Docker-based deployments:
 
 ```bash
-# Docker with multi-user mode
 docker run -p 127.0.0.1:8000:8000 \
-  -e NCMCP_MULTI_USER=true \
-  -e NEXTCLOUD_HOST=https://your.nextcloud.instance.com \
-  --rm ghcr.io/cbcoutinho/nextcloud-mcp-server:latest \
-  --transport streamable-http
+  --env NEXTCLOUD_HOST="https://your.nextcloud.instance.com" \
+  --env NCMCP_MULTI_USER=true \
+  ghcr.io/cbcoutinho/nextcloud-mcp-server:latest --transport streamable-http
 ```
 
-### Security Considerations
-
-- **HTTPS Recommended**: Use HTTPS for your Nextcloud instance in production
-- **App Passwords**: Always use Nextcloud App Passwords instead of regular passwords
-- **Network Security**: Consider IP allowlists or reverse proxy authentication for public deployments
-- **Logging**: Authorization headers are automatically redacted from server logs
+If you want to run the integration suite against two accounts in multi-user mode, provide additional credentials via `NEXTCLOUD_ALT_USERNAME` and `NEXTCLOUD_ALT_PASSWORD`.
 
 ## Transport Types
 
